@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { UserPlus, LogIn, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface AuthCardProps {
@@ -116,9 +117,24 @@ export function SignupCard({ initialMode = 'signup', onSuccess }: AuthCardProps)
 
   return (
     <div className="w-full max-w-[440px] rounded-[28px] border border-slate-200/90 bg-white p-7 sm:p-9 shadow-[0_12px_45px_-15px_rgba(15,23,42,0.12)]">
+      {/* Brand Logo & Name */}
+      <div className="flex flex-col items-center justify-center mb-5">
+        <img
+          src="/logo.png"
+          alt="Centennial Infotech"
+          className="h-14 w-auto object-contain mb-1.5"
+        />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-blue-600">
+          Centennial Infotech
+        </p>
+        <p className="text-sm font-bold text-slate-800">
+          Recruiting Automation
+        </p>
+      </div>
+
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-[26px] sm:text-[28px] font-bold tracking-tight text-slate-900">
+        <h1 className="text-[22px] sm:text-[24px] font-bold tracking-tight text-slate-900">
           {mode === 'signup' ? 'Create your account' : 'Welcome back'}
         </h1>
         <p className="mt-1.5 text-sm text-slate-500">
@@ -316,6 +332,17 @@ export function SignupCard({ initialMode = 'signup', onSuccess }: AuthCardProps)
           </>
         )}
       </p>
+
+      {/* Legal Links */}
+      <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-center gap-3 text-[11px] text-slate-400">
+        <Link href="/privacy-policy" className="hover:text-slate-600 transition underline underline-offset-2">
+          Privacy Policy
+        </Link>
+        <span>•</span>
+        <Link href="/terms-and-conditions" className="hover:text-slate-600 transition underline underline-offset-2">
+          Terms &amp; Conditions
+        </Link>
+      </div>
     </div>
   )
 }

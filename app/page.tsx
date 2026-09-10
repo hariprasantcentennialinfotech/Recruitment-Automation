@@ -126,8 +126,9 @@ export default function Page() {
         if (data.user) {
           setCurrentUser(data.user)
           setSignedIn(true)
-          if (data.user.company) {
-            setOrganization(data.user.company)
+          const org = data.user.organization || data.user.company
+          if (org) {
+            setOrganization(org)
             setWorkspaceReady(true)
           }
         }
@@ -182,8 +183,9 @@ export default function Page() {
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user)
     setSignedIn(true)
-    if (user.company) {
-      setOrganization(user.company)
+    const org = user.organization || user.company
+    if (org) {
+      setOrganization(org)
       setWorkspaceReady(true)
     }
     announce(`Welcome, ${user.fullName || 'back'}!`)
@@ -262,7 +264,16 @@ export default function Page() {
   if (!workspaceReady) {
     return (
       <OrganizationSetup
-        onComplete={(name) => {
+        onComplete={async (name) => {
+          try {
+            await fetch('/api/auth/organization', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ organization: name }),
+            })
+          } catch (e) {
+            console.error('Failed to save organization to profile:', e)
+          }
           setOrganization(name)
           setWorkspaceReady(true)
         }}
@@ -297,14 +308,18 @@ export default function Page() {
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-6 px-5 py-4 lg:px-10">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-              <Sparkles className="size-5" />
-            </div>
+            <img
+              src="/logo.png"
+              alt="Centennial Infotech"
+              className="size-10 object-contain rounded-xl"
+            />
             <div>
-              <p className="text-[17px] font-semibold tracking-tight">
-                talent<span className="text-primary">flow</span>
+              <p className="text-[16px] sm:text-[17px] font-bold tracking-tight text-foreground leading-tight">
+                Recruiting Automation
               </p>
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">Recruiting OS</p>
+              <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
+                Centennial Infotech
+              </p>
             </div>
           </div>
 
@@ -585,8 +600,20 @@ function AuthScreen({ onAuthSuccess }: { onAuthSuccess: (user: any) => void }) {
   )
 }
 
-function OrganizationSetup({ onComplete, onSignOut }: { onComplete: (name: string) => void; onSignOut: () => void }) {
+function OrganizationSetup({ onComplete, onSignOut }: { onComplete: (name: string) => Promise<void> | void; onSignOut: () => void }) {
   const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const handleContinue = async () => {
+    if (!name.trim() || saving) return
+    setSaving(true)
+    try {
+      await onComplete(name.trim())
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-5 py-10">
       <div className="w-full max-w-lg rounded-3xl border border-border bg-card p-8 shadow-[0_20px_60px_-35px_rgba(25,45,75,0.4)]">
@@ -609,15 +636,23 @@ function OrganizationSetup({ onComplete, onSignOut }: { onComplete: (name: strin
             placeholder="e.g. Acme Corp, TechNova, Centennial"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            disabled={saving}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleContinue()
+            }}
             className="rounded-xl border border-input bg-background px-4 py-3 outline-none ring-primary focus:ring-2"
           />
         </label>
         <button
-          disabled={!name.trim()}
-          onClick={() => onComplete(name.trim())}
+          disabled={!name.trim() || saving}
+          onClick={handleContinue}
           className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 font-semibold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Continue to dashboard <ArrowUpRight className="size-4" />
+          {saving ? 'Saving workspace...' : (
+            <>
+              Continue to dashboard <ArrowUpRight className="size-4" />
+            </>
+          )}
         </button>
       </div>
     </main>

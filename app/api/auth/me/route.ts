@@ -15,14 +15,17 @@ export async function GET() {
       const collection = usersCollection()
       const user = await collection.findOne({ _id: new ObjectId(session.userId) })
       if (user) {
+        const org = user.organization || user.company || session.organization || session.company || ''
         return NextResponse.json({
           user: {
             id: user._id.toString(),
             fullName: user.fullName,
-            company: user.company,
+            company: user.company || org,
+            organization: org,
             email: user.email,
             image: user.image,
-            provider: user.provider
+            provider: user.provider,
+            role: user.role || 'recruiter',
           }
         })
       }
@@ -30,7 +33,14 @@ export async function GET() {
       // If DB query fails, fall back to session
     }
 
-    return NextResponse.json({ user: session })
+    const sessionOrg = session.organization || session.company || ''
+    return NextResponse.json({
+      user: {
+        ...session,
+        company: session.company || sessionOrg,
+        organization: sessionOrg,
+      }
+    })
   } catch (err: any) {
     return NextResponse.json({ user: null })
   }

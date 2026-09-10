@@ -78,13 +78,13 @@ export async function GET(req: Request) {
         }
       )
     } else {
-      const organizationSlug = googleUser.email
-        ? googleUser.email.split('@')[1].replace(/\./g, '-')
-        : 'unknown-org'
+      const emailDomain = googleUser.email ? googleUser.email.split('@')[1] : ''
+      const isGeneric = ['gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com'].includes((emailDomain || '').toLowerCase())
+      const defaultOrg = !isGeneric && emailDomain ? emailDomain.split('.')[0] : ''
       const newUser = {
         fullName: googleUser.name || 'Google User',
-        company: '',
-        organization: organizationSlug,
+        company: defaultOrg,
+        organization: defaultOrg,
         email: normalizedEmail,
         image: googleUser.picture,
         provider: 'google',
@@ -98,19 +98,19 @@ export async function GET(req: Request) {
       user = { _id: insertResult.insertedId, ...newUser }
     }
 
-    // Derive organization for session
-    const organization =
+    // Derive organization for session — prioritize user's saved organization or company
+    const orgValue =
       user.organization ||
-      (user.company || '').toLowerCase().replace(/\s+/g, '-') ||
-      normalizedEmail.split('@')[1]
+      user.company ||
+      ''
 
     // Create session token
     const token = createSessionToken({
       userId,
       email: normalizedEmail,
       fullName: user.fullName || googleUser.name,
-      company: user.company || '',
-      organization,
+      company: user.company || orgValue,
+      organization: orgValue,
       role: user.role || 'recruiter',
       image: googleUser.picture,
       provider: 'google'

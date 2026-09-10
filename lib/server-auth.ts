@@ -60,7 +60,7 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
       userId: session.userId,
       email: session.email,
       fullName: session.fullName,
-      organization: session.company || '',
+      organization: session.organization || session.company || '',
       role: 'recruiter',
       isSuperAdmin: false,
     }

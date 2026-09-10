@@ -16,7 +16,6 @@ import {
   Layers,
   ArrowRight,
   ShieldCheck,
-  Zap,
   Info,
   ChevronRight,
   ListFilter,
@@ -370,7 +369,9 @@ export function DriveHierarchyManager({ organization, onNotice }: DriveHierarchy
                 onClick={handleConnectGoogleDrive}
                 className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 transition"
               >
-                <Zap className="size-4 fill-current" />
+                <svg className="size-4 fill-current" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
                 <span>Connect Google Drive (1-Click)</span>
               </button>
             )}
