@@ -57,7 +57,14 @@ export async function listDriveFolderChildren(
 
   if (!res.ok) {
     const errorText = await res.text()
-    throw new Error(`Google Drive API error (${res.status}): ${errorText}`)
+    let errorMsg = `Google Drive API error (${res.status}): ${errorText}`
+    try {
+      const parsed = JSON.parse(errorText)
+      if (parsed.error?.message) {
+        errorMsg = parsed.error.message
+      }
+    } catch {}
+    throw new Error(errorMsg)
   }
 
   const data = await res.json()

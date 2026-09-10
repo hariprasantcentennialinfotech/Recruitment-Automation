@@ -92,58 +92,91 @@ export async function extractCandidateFromResume(
   const apiKey = getGeminiApiKey()
 
   if (apiKey) {
-    try {
-      const prompt = `You are an expert recruitment parser. Extract the candidate information strictly from the following resume text.
-CRITICAL RULE: Never invent, assume, or hallucinate missing information. If any field is not explicitly present in the text, leave it empty or an empty array.
+    const prompt = `You are an expert recruitment parser. Extract ONLY information that is clearly present as human-readable contact/profile data in the resume below.
 
-Return a JSON object conforming to this schema:
+STRICT RULES — MUST FOLLOW:
+1. candidate_name: Extract the person's full name. It must be a real human name (2+ words, only letters/spaces/hyphens). DO NOT use file IDs, numbers, timestamps, email addresses, or generic words like "Resume".
+2. email: Must match a valid email pattern (contains @ and a domain). Only return empty string if not found.
+3. phone: Must be a real phone number in standard format (e.g. +1 555-123-4567, (650) 215-2369). NEVER return page dimensions, timestamps, file sizes, or number sequences that are not formatted as phone numbers. Return empty string if unclear.
+4. location: A city, state, or country name. Not an ID or code.
+5. current_title: The person's job title or profession. Should be recognizable job titles (e.g. "Software Engineer", "DevOps Engineer"). NOT metadata or keywords.
+6. total_experience: A number followed by "years" (e.g. "7 years", "10+ years"). Return empty string if not explicitly stated.
+7. skills: Only real technical or professional skills explicitly mentioned. Max 20 skills.
+8. NEVER invent, assume, or hallucinate missing information. Return empty string or empty array for any field not clearly present.
+
+Return ONLY a valid JSON object with exactly these keys:
 {
   "candidate_name": "Full Name",
-  "email": "email address or empty string",
-  "phone": "phone number or empty string",
-  "location": "location/city or empty string",
-  "current_title": "current or most recent job title or empty string",
-  "current_company": "current or most recent company or empty string",
-  "total_experience": "total years of experience (e.g. '5 years') or empty string",
+  "email": "email@example.com or empty string",
+  "phone": "phone number in readable format or empty string",
+  "location": "City, State or empty string",
+  "current_title": "Job Title or empty string",
+  "current_company": "Company Name or empty string",
+  "total_experience": "X years or empty string",
   "skills": ["Skill1", "Skill2"],
-  "education": [{"institution": "University/School", "degree": "Degree/Major"}],
-  "certifications": ["Certification 1"],
-  "work_authorization": "e.g. 'US Citizen', 'Green Card', 'H1B' or empty string",
-  "availability": "notice period or availability or empty string"
+  "education": [{"institution": "University", "degree": "Degree"}],
+  "certifications": ["Certification"],
+  "work_authorization": "US Citizen / Green Card / H-1B / OPT / TN / Authorized / empty string",
+  "availability": "Immediate / 2 weeks / X weeks / empty string"
 }
 
 Resume Text:
 """
-${resumeText.slice(0, 30_000)}
+${resumeText.slice(0, 28_000)}
 """`
 
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.1,
-            },
-          }),
-        }
-      )
+    // Try multiple Gemini model names for resilience
+    const models = [
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-8b',
+    ]
 
-      if (response.ok) {
-        const data = await response.json()
-        const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text
-        if (rawContent) {
-          const parsedJson = JSON.parse(rawContent)
-          return CandidateExtractionSchema.parse(parsedJson)
+    for (const model of models) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.05,
+              },
+            }),
+          }
+        )
+
+        if (response.ok) {
+          const data = await response.json()
+          const rawContent = data.candidates?.[0]?.content?.parts?.[0]?.text
+          if (rawContent) {
+            try {
+              const parsedJson = JSON.parse(rawContent)
+              const validated = CandidateExtractionSchema.parse(parsedJson)
+              // Sanity check: reject if name looks like a file ID/timestamp
+              const name = validated.candidate_name || ''
+              if (name && !/^\d+$/.test(name) && name.length > 2 && name.length < 80) {
+                return validated
+              }
+            } catch {
+              // JSON parse or Zod error — try next model
+            }
+          }
+        } else if (response.status === 429 || response.status === 503) {
+          // Rate limit or overload — try next model
+          console.warn(`[Gemini] Model ${model} overloaded (${response.status}), trying next...`)
+          continue
+        } else {
+          console.warn(`[Gemini] Model ${model} returned HTTP ${response.status}`)
+          break
         }
-      } else {
-        console.warn(`[Gemini API] Request returned HTTP ${response.status}. Using structured fallback.`)
+      } catch (err) {
+        console.warn(`[Gemini] Model ${model} failed:`, err)
       }
-    } catch (err) {
-      console.warn('[Gemini API] Extraction error, using fallback:', err)
     }
   }
 
@@ -154,41 +187,66 @@ ${resumeText.slice(0, 30_000)}
 function fallbackExtractProfile(text: string, fileName: string): CandidateExtraction {
   const compact = text.replace(/\s+/g, ' ').trim()
   const emailMatch = compact.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0] || ''
-  const phoneMatch = compact.match(/(?:\+?\d[\d ()-]{7,}\d)/)?.[0] || ''
 
-  // Name inference: first line with letters or clean file name
+  // Phone: must start with +, (, or a digit and contain digits + common separators
+  // Reject pure numeric strings that look like page dimensions (e.g. "0 0 612 792") or timestamps
+  const phoneRaw = compact.match(
+    /(?:\+1[\s.-]?)?\(?\d{3}\)?[\s.\-]{0,2}\d{3}[\s.\-]{0,2}\d{4}(?:\s*(?:ext|x)[\s.]*\d{1,5})?/
+  )?.[0] || ''
+  const phoneMatch = phoneRaw.replace(/[^\d+() -]/g, '').trim()
+
+  // Name inference: must look like a real person's name (only letters, 2–5 words, starts capital)
   const lines = text
     .split(/\r?\n/)
     .map((l) => l.trim())
-    .filter((l) => l.length > 2 && !l.includes('@') && !/resume|cv|curriculum/i.test(l))
+    .filter((l) =>
+      l.length > 2 &&
+      l.length < 60 &&
+      !l.includes('@') &&
+      !/^[\d\s.,%/\\]+$/.test(l) && // skip lines that are only numbers/symbols
+      !/resume|cv|curriculum|page|objective|summary|skills|experience|education/i.test(l) &&
+      /[a-zA-Z]/.test(l)
+    )
 
   let name = ''
-  if (lines.length > 0 && lines[0].length < 40 && /^[A-Z]/.test(lines[0])) {
-    name = lines[0]
-  } else {
+  for (const line of lines.slice(0, 5)) {
+    // Accept line as a name if it looks like "First Last" (2-4 capitalized words)
+    if (/^[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,3}$/.test(line)) {
+      name = line
+      break
+    }
+  }
+
+  if (!name) {
+    // Fall back to the file name (cleaned up)
     name = fileName
       .replace(/[-_]/g, ' ')
       .replace(/\.[^.]+$/, '')
-      .replace(/resume|cv|application/gi, '')
+      .replace(/resume|cv|application|\d{4,}/gi, '')
       .trim()
   }
-  if (!name) name = 'Candidate ' + fileName.slice(0, 8)
+  if (!name || name.length < 3) name = 'Candidate'
 
   // Experience extraction heuristic
   const expMatch = compact.match(/(\d{1,2})\+?\s*(?:years?|yrs?)(?:\s+of)?\s+experience/i)
   const total_experience = expMatch ? `${expMatch[1]} years` : ''
 
-  // Title inference
-  const titleMatch = compact.match(/(?:Senior|Lead|Junior|Principal|Staff)?\s*(?:Software|Full Stack|Frontend|Backend|DevOps|Cloud|Product|Data)\s*(?:Engineer|Developer|Architect|Manager|Specialist)/i)
-  const current_title = titleMatch ? titleMatch[0] : ''
+  // Title inference — look for common title patterns
+  const titleMatch = compact.match(
+    /(?:Senior\s+|Lead\s+|Junior\s+|Principal\s+|Staff\s+|Sr\.?\s+|Jr\.?\s+)?(?:Software|Full[- ]Stack|Frontend|Backend|DevOps|Cloud|Product|Data|QA|Network|Security|Systems?|IT|Web|Mobile)\s*(?:Engineer(?:ing)?|Developer|Architect|Manager|Analyst|Specialist|Administrator|Consultant|Technician)/i
+  )
+  const current_title = titleMatch ? titleMatch[0].trim() : ''
 
   // Skills
   const knownSkills = [
     'React', 'Next.js', 'TypeScript', 'JavaScript', 'Python', 'Node.js',
     'TailwindCSS', 'MongoDB', 'PostgreSQL', 'SQL', 'Docker', 'Kubernetes',
     'AWS', 'GCP', 'Azure', 'Git', 'GraphQL', 'REST APIs', 'Figma', 'UI/UX',
-    'Machine Learning', 'Generative AI', 'Gemini', 'OpenAI', 'System Architecture',
+    'Machine Learning', 'Generative AI', 'OpenAI', 'System Architecture',
     'CI/CD', 'Microservices', 'Redis', 'Kafka', 'Java', 'Go', 'C++', 'Linux',
+    'VMware', 'Hyper-V', 'vSphere', 'Virtualization', 'Networking', 'CCNA', 'CCNP',
+    'Active Directory', 'Azure Active Directory', 'Office 365', 'PowerShell',
+    'Terraform', 'Ansible', 'Jenkins', 'Windows Server', 'RHEL', 'Ubuntu',
   ]
 
   const extractedSkills = knownSkills.filter((skill) =>
@@ -197,16 +255,23 @@ function fallbackExtractProfile(text: string, fileName: string): CandidateExtrac
 
   // Work Auth check
   let work_authorization = ''
-  if (/us citizen|u\.s\. citizen|citizen/i.test(compact)) work_authorization = 'US Citizen'
+  if (/\bus citizen\b|u\.s\. citizen/i.test(compact)) work_authorization = 'US Citizen'
   else if (/green card|permanent resident/i.test(compact)) work_authorization = 'Permanent Resident'
-  else if (/h1b|h-1b/i.test(compact)) work_authorization = 'H-1B'
+  else if (/h-?1b\b/i.test(compact)) work_authorization = 'H-1B'
+  else if (/\bopt\b/i.test(compact)) work_authorization = 'OPT'
   else if (/authorized to work/i.test(compact)) work_authorization = 'Authorized'
+
+  // Location heuristic — look for common US cities or "Remote"
+  const locationMatch = compact.match(
+    /(?:Remote|San Francisco|New York|Seattle|Austin|Chicago|Boston|Los Angeles|San Jose|Dallas|Atlanta|Houston|Phoenix|Denver|Miami|Raleigh|Hyderabad|Bangalore|Chennai|Mumbai|London|Toronto|Canada)\b/i
+  )
+  const location = locationMatch?.[0] || ''
 
   return CandidateExtractionSchema.parse({
     candidate_name: name,
     email: emailMatch,
     phone: phoneMatch,
-    location: compact.match(/(?:San Francisco|New York|Seattle|Austin|Chicago|Boston|Los Angeles|Remote|London|Toronto)/i)?.[0] || 'Remote',
+    location,
     current_title,
     current_company: '',
     total_experience,

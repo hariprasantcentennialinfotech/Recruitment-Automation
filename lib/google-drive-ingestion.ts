@@ -42,31 +42,52 @@ export function normalizePhone(phone?: string): string {
  * Parses text from a PDF Buffer with robust fallbacks.
  */
 export async function extractPdfText(buffer: Buffer): Promise<string> {
+  // pdf-parse v2 uses a class-based API — `new PDFParse({ data: buffer }).getText()`
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const pdfParse = require('pdf-parse')
-    const data = await pdfParse(buffer)
-    if (data && typeof data.text === 'string' && data.text.trim().length > 0) {
-      return data.text.trim()
+    const pdfParseModule = require('pdf-parse')
+
+    // v2.x exports a named class: { PDFParse }
+    const PDFParseClass = pdfParseModule.PDFParse || pdfParseModule.default?.PDFParse
+    if (PDFParseClass) {
+      const parser = new PDFParseClass({ data: buffer })
+      const result = await parser.getText()
+      await parser.destroy().catch(() => {})
+      // v2 getText() returns { text, pages, info } object or just the text string
+      const extracted =
+        typeof result === 'string'
+          ? result
+          : typeof result?.text === 'string'
+          ? result.text
+          : ''
+      if (extracted.trim().length > 20) return extracted.trim()
     }
-  } catch {
-    // Fallback parser if pdf-parse encounters standard issues
+
+    // v1 compatibility: pdf-parse exported as a callable function
+    const pdfParseV1 = typeof pdfParseModule === 'function' ? pdfParseModule : pdfParseModule.default
+    if (typeof pdfParseV1 === 'function') {
+      const data = await pdfParseV1(buffer)
+      if (data && typeof data.text === 'string' && data.text.trim().length > 0) {
+        return data.text.trim()
+      }
+    }
+  } catch (err) {
+    console.warn('[extractPdfText] pdf-parse failed, falling back to raw stream extraction:', err)
   }
 
-  // Text stream fallback for PDF files
-  const binary = buffer.toString('binary')
-  const streamMatches = binary.match(/BT[\s\S]*?ET/g) || []
-  if (streamMatches.length > 0) {
-    const extracted = streamMatches
-      .map((s) => s.replace(/[^\x20-\x7E\n]/g, ' '))
-      .join('\n')
+  // Last resort: Extract readable text from PDF binary stream (strips PDF operators & control bytes)
+  const rawText = buffer.toString('utf8')
+  // Extract text within PDF text objects: parenthesised strings  (text)  or Tj/TJ stream items
+  const tjMatches = rawText.match(/\(([^\)\\]{2,})\)\s*(?:Tj|TJ|'|")/g) || []
+  if (tjMatches.length > 0) {
+    const extracted = tjMatches
+      .map((m) => m.replace(/^\(/, '').replace(/\)\s*(?:Tj|TJ|'|")$/, '').trim())
+      .filter((s) => s.length > 1 && /[a-zA-Z]{2,}/.test(s))
+      .join(' ')
       .replace(/\s+/g, ' ')
       .trim()
-    if (extracted.length > 20) return extracted
+    if (extracted.length > 30) return extracted
   }
-
-  const plainText = buffer.toString('utf8').replace(/[^\x20-\x7E\n]/g, ' ').replace(/\s+/g, ' ').trim()
-  if (plainText.length > 20 && !plainText.includes('NOT_A_VALID_DOCUMENT')) return plainText
 
   throw new Error('Unable to extract text from PDF file. File may be encrypted, scanned image, or corrupt.')
 }
