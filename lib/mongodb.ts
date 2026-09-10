@@ -13,3 +13,36 @@ export function getMongoClient() {
 export function candidateProfilesCollection() {
   return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('candidate_profiles')
 }
+
+export function usersCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('users')
+}
+
+export function clientsCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('clients')
+}
+
+export function jobsCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('jobs')
+}
+
+export function activitiesCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('activities')
+}
+
+export function jobAutomationConfigCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('job_automation_configs')
+}
+
+export function resumeProcessingRecordsCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('resume_processing_records')
+}
+
+export function driveWatchChannelsCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('drive_watch_channels')
+}
+
+export function organizationAutomationSettingsCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('organization_automation_settings')
+}
+

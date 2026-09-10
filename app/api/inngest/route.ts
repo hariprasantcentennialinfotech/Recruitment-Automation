@@ -1,0 +1,10 @@
+import { serve } from 'inngest/next'
+import { inngest, inngestFunctions } from '@/lib/inngest'
+
+export const runtime = 'nodejs'
+
+// Inngest serve handler for Next.js App Router
+export const { GET, POST, PUT } = serve({
+  client: inngest,
+  functions: inngestFunctions,
+})
