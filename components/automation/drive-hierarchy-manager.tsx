@@ -95,7 +95,17 @@ export function DriveHierarchyManager({ organization, onNotice }: DriveHierarchy
     try {
       setLoading(true)
       const res = await fetch('/api/automation/drive-hierarchy')
-      const data = await res.json()
+      let data: any = {}
+      if (res.ok) {
+        try {
+          data = await res.json()
+        } catch (e) {
+          console.warn('Failed to parse drive-hierarchy JSON response:', e)
+        }
+      } else {
+        const errText = await res.text().catch(() => '')
+        console.error('Drive hierarchy request failed with status', res.status, errText)
+      }
 
       if (data.settings) {
         setSettings(data.settings)

@@ -379,7 +379,7 @@ export function fallbackExtractProfile(text: string, fileName: string): Candidat
     if (/^[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,3}$/.test(cleaned)) {
       const isAllUpper = cleaned === cleaned.toUpperCase()
       const isHeaderWord = /QUALIFICATION|HIGHLIGHT|EXPERIENCE|SUMMARY|SKILLS|EDUCATION|CERTIFICATE|MANAGEMENT|PROJECT|DEVELOPER|ENGINEER/i.test(cleaned)
-      if (!isAllUpper || !isHeaderWord) {
+      if (!isHeaderWord && !isAllUpper) {
         name = cleaned
         break
       }
