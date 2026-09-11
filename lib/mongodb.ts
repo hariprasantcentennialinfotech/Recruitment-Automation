@@ -1,13 +1,21 @@
-import { MongoClient } from 'mongodb'
+import { MongoClient, type MongoClientOptions } from 'mongodb'
 
 const globalForMongo = globalThis as typeof globalThis & { mongoClient?: MongoClient }
+
+const mongoOptions: MongoClientOptions = {
+  maxPoolSize: 10,
+  serverSelectionTimeoutMS: 8000,
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+}
 
 export function getMongoClient() {
   const uri = process.env.MONGODB_URI
   if (!uri) throw new Error('MONGODB_URI is not configured')
-  const client = globalForMongo.mongoClient ?? new MongoClient(uri)
-  if (process.env.NODE_ENV !== 'production') globalForMongo.mongoClient = client
-  return client
+  if (!globalForMongo.mongoClient) {
+    globalForMongo.mongoClient = new MongoClient(uri, mongoOptions)
+  }
+  return globalForMongo.mongoClient
 }
 
 export function candidateProfilesCollection() {
