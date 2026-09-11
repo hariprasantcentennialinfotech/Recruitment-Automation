@@ -651,19 +651,26 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-8 px-6 text-xs text-slate-500">
-        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
+      <footer className="border-t border-slate-200 bg-white py-10 px-6 text-xs text-slate-500">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 sm:flex-row">
           <div className="flex items-center gap-3">
             <img src="/logo.png" alt="Centennial Logo" className="h-6 w-auto object-contain" />
-            <span className="font-bold text-slate-800">Centennial Recruitment Automation</span>
-            <span>·</span>
-            <span>© 2026 Centennial Infotech</span>
+            <div>
+              <p className="font-bold text-slate-800">Centennial Recruitment Automation</p>
+              <p className="text-[11px] text-slate-400">© 2026 Centennial Infotech. All rights reserved.</p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <a href="#features" className="hover:text-slate-900">Features</a>
-            <a href="#pipeline" className="hover:text-slate-900">Pipeline Demo</a>
-            <a href="#pricing" className="hover:text-slate-900">Pricing</a>
+          <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
+            <a href="#features" className="hover:text-slate-900 transition">Features</a>
+            <a href="#pipeline" className="hover:text-slate-900 transition">Pipeline Demo</a>
+            <a href="#pricing" className="hover:text-slate-900 transition">Pricing</a>
+            <a href="/privacy-policy" className="text-slate-600 hover:text-[#0284c7] font-semibold transition">
+              Privacy Policy
+            </a>
+            <a href="/terms-and-conditions" className="text-slate-600 hover:text-[#0284c7] font-semibold transition">
+              Terms & Conditions
+            </a>
             {onOpenAdminLogin && (
               <button
                 onClick={onOpenAdminLogin}
