@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'Recruitment Automation — Centennial Infotech',
+  title: 'Recruiting Automation — Centennial Infotech',
   description: 'Centennial Infotech — AI-powered recruitment automation and talent workflow platform.',
   icons: {
     icon: '/logo.png',
