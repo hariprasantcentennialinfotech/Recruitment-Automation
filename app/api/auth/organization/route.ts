@@ -5,7 +5,7 @@ import { ObjectId } from 'mongodb'
 
 export async function POST(req: Request) {
   try {
-    const session = await getSession()
+    const session = await getSession(req)
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized. Please sign in.' }, { status: 401 })
     }

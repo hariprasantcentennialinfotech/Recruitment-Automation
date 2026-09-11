@@ -14,7 +14,7 @@ export async function GET(req: Request) {
   }
 
   const url = new URL(req.url)
-  const session = await getSession()
+  const session = await getSession(req)
 
   // Get organization from query param or user session
   const organization =

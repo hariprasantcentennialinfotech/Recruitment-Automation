@@ -52,7 +52,21 @@ export function verifySessionToken(token: string): SessionPayload | null {
   }
 }
 
-export async function getSession(): Promise<SessionPayload | null> {
+export function getSessionFromCookieHeader(cookieHeader: string | null | undefined): SessionPayload | null {
+  if (!cookieHeader) return null
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${AUTH_COOKIE_NAME}=([^;]+)`))
+  if (!match) return null
+  const token = decodeURIComponent(match[1])
+  return verifySessionToken(token)
+}
+
+export async function getSession(req?: Request): Promise<SessionPayload | null> {
+  if (req) {
+    const cookieHeader = req.headers.get('cookie')
+    const session = getSessionFromCookieHeader(cookieHeader)
+    if (session) return session
+  }
+
   try {
     const { cookies } = await import('next/headers')
     const cookieStore = await cookies()

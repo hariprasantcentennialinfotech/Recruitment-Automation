@@ -3,9 +3,9 @@ import { getSession } from '@/lib/auth'
 import { usersCollection } from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const session = await getSession()
+    const session = await getSession(req)
     if (!session) {
       return NextResponse.json({ user: null })
     }
