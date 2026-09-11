@@ -170,10 +170,17 @@ ${resumeText.slice(0, 28_000)}
             try {
               const parsedJson = JSON.parse(rawContent)
               const validated = CandidateExtractionSchema.parse(parsedJson)
-              // Sanity check: reject if name looks like a file ID/timestamp or resume section header
+              // Sanity check: reject if name looks like a file ID/timestamp or resume section/job title header
               const name = validated.candidate_name || ''
-              const isSectionHeader = /highlight|qualification|summary|competenc|experience|education|skill|certif|responsibilit|accomplish|overview|employ|history|background|reference|award|interest|activit|declaration|technical|leadership|career/i.test(name)
+              const isSectionHeader = /highlight|qualification|summary|competenc|experience|education|skill|certif|responsibilit|accomplish|overview|employ|history|background|reference|award|interest|activit|declaration|technical|leadership|career|salesforce|program|manager|analyst|consultant|architect|specialist|director|coordinator|administrator/i.test(name)
               if (name && !/^\d+$/.test(name) && !isSectionHeader && name.length > 2 && name.length < 80) {
+                // Sanitize phone: reject if fewer than 10 digits (PDF coordinates, timestamps, page sizes)
+                if (validated.phone) {
+                  const phonDigits = validated.phone.replace(/\D/g, '')
+                  if (phonDigits.length < 10 || phonDigits.length > 15) {
+                    validated.phone = ''
+                  }
+                }
                 return validated
               }
             } catch {
@@ -336,17 +343,18 @@ export function fallbackExtractProfile(text: string, fileName: string): Candidat
   const emailMatch = compact.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0] || ''
 
   // Phone: look for international formats (+1, +91, +44, etc.), US formats, or domestic 10-digit numbers
-  // Must contain between 7 and 15 digits, and not look like a timestamp or years (e.g. 2020-2024)
+  // Must contain 10-15 digits to rule out PDF coordinates, page sizes, and timestamps (e.g. 122 492 1794 = 9 digits)
   let phoneMatch = ''
   const phoneCandidates = compact.matchAll(/(?:(?:\+|00)\d{1,3}[\s.-]?)?(?:\(?\d{2,5}\)?[\s.-]?)?\d{3,5}[\s.-]?\d{3,5}(?:\s*(?:ext|x)[\s.]*\d{1,5})?/g)
   for (const m of phoneCandidates) {
     const raw = m[0]?.trim() || ''
     const digitsOnly = raw.replace(/\D/g, '')
     if (
-      digitsOnly.length >= 7 &&
+      digitsOnly.length >= 10 &&
       digitsOnly.length <= 15 &&
       !/^(?:19|20)\d{2}/.test(digitsOnly) &&
-      !digitsOnly.startsWith('0000')
+      !digitsOnly.startsWith('0000') &&
+      !/^(\d)\1{6,}$/.test(digitsOnly) // reject repeating digits like 1111111111
     ) {
       phoneMatch = raw.replace(/[^\d+() -]/g, '').trim()
       break
@@ -378,7 +386,8 @@ export function fallbackExtractProfile(text: string, fileName: string): Candidat
     // Accept line as a name if it looks like "First Last" (2-4 capitalized words)
     if (/^[A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,3}$/.test(cleaned)) {
       const isAllUpper = cleaned === cleaned.toUpperCase()
-      const isHeaderWord = /QUALIFICATION|HIGHLIGHT|EXPERIENCE|SUMMARY|SKILLS|EDUCATION|CERTIFICATE|MANAGEMENT|PROJECT|DEVELOPER|ENGINEER/i.test(cleaned)
+      // Reject section headers AND common non-name job/product/program words
+      const isHeaderWord = /QUALIFICATION|HIGHLIGHT|EXPERIENCE|SUMMARY|SKILLS|EDUCATION|CERTIFICATE|MANAGEMENT|PROJECT|DEVELOPER|ENGINEER|SALESFORCE|PROGRAM|MANAGER|ANALYST|CONSULTANT|ARCHITECT|SPECIALIST|DIRECTOR|COORDINATOR|ADMINISTRATOR|RECRUITER|ASSOCIATE|EXECUTIVE|OFFICER|PRESIDENT|VICE|SENIOR|JUNIOR|LEAD|PRINCIPAL|STAFF|INTERN|CONTRACTOR/i.test(cleaned)
       if (!isHeaderWord && !isAllUpper) {
         name = cleaned
         break
