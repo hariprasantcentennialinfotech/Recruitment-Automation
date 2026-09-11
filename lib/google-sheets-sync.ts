@@ -32,7 +32,8 @@ export { getSheetsAccessToken }
  */
 export function formatCandidateRow(
   candidate: CandidateDocument,
-  columns?: string[]
+  columns?: string[],
+  selectedColumns?: string[]
 ): string[] {
   const resumeRef = candidate.resumeUrl
     ? candidate.resumeUrl
@@ -60,7 +61,24 @@ export function formatCandidateRow(
   const custom = candidate.customFields || {}
 
   return columns.map((col) => {
-    const norm = col.toLowerCase().trim()
+    const colTrimmed = col.trim()
+    if (!colTrimmed) return ''
+    const norm = colTrimmed.toLowerCase()
+
+    // STRICT CHECK: If user specified a subset of selected columns, ONLY populate those columns!
+    if (selectedColumns && selectedColumns.length > 0) {
+      const isSelected = selectedColumns.some((sc) => {
+        const scNorm = sc.toLowerCase().trim()
+        return (
+          scNorm === norm ||
+          (norm.includes(scNorm) && scNorm.length > 3) ||
+          (scNorm.includes(norm) && norm.length > 3)
+        )
+      })
+      if (!isSelected) {
+        return '' // Leave unselected column empty
+      }
+    }
 
     // 1. Direct match in customFields extracted by Gemini
     if (custom[col] !== undefined && custom[col] !== '') return String(custom[col])
@@ -68,29 +86,100 @@ export function formatCandidateRow(
       if (k.toLowerCase().trim() === norm && v !== '') return String(v)
     }
 
-    // 2. Intelligent mapping to candidate document properties
+    // 2. Missed / Missing details or requirements in resume (MUST check BEFORE "resume" link check!)
+    if (
+      norm.includes('missed') ||
+      norm.includes('missing') ||
+      norm.includes('gap') ||
+      norm.includes('lacking') ||
+      (norm.includes('not') && norm.includes('found'))
+    ) {
+      if (candidate.missingSkills && candidate.missingSkills.length > 0) {
+        return candidate.missingSkills.join(', ')
+      }
+      return 'None'
+    }
+
+    // 3. Intelligent mapping to candidate document properties
     if (norm.includes('name') || norm === 'candidate') return candidate.fullName || ''
     if (norm.includes('email') || norm === 'mail') return candidate.email || ''
-    if (norm.includes('phone') || norm.includes('mobile') || norm.includes('contact')) return candidate.phone || ''
-    if (norm.includes('location') || norm.includes('city') || norm.includes('country')) return candidate.location || ''
-    if (norm.includes('title') || norm.includes('designation') || norm.includes('role') || norm.includes('position')) return candidate.currentTitle || ''
-    if (norm.includes('company') || norm.includes('organization') || norm.includes('employer')) return candidate.currentCompany || ''
-    if (norm.includes('experience') || norm.includes('years') || norm.includes('exp')) return candidate.totalExperience || ''
-    if (norm.includes('matching') && norm.includes('skill')) return (candidate.matchingSkills || []).join(', ')
-    if (norm.includes('missing') && norm.includes('skill')) return (candidate.missingSkills || []).join(', ')
-    if (norm.includes('skill')) return (candidate.skills || []).join(', ')
-    if (norm.includes('score') || norm.includes('rating')) return candidate.matchScore !== undefined ? `${candidate.matchScore}%` : ''
-    if (norm.includes('recommendation') || norm.includes('decision') || norm.includes('fit')) return candidate.recommendation || ''
+    if (
+      norm.includes('phone') ||
+      norm.includes('mobile') ||
+      norm.includes('contact') ||
+      norm.includes('cell') ||
+      norm.includes('tel')
+    ) {
+      return candidate.phone || ''
+    }
+    if (
+      norm.includes('address') ||
+      norm.includes('location') ||
+      norm.includes('city') ||
+      norm.includes('country') ||
+      norm.includes('state')
+    ) {
+      return candidate.location || ''
+    }
+    if (norm.includes('title') || norm.includes('designation') || norm.includes('role') || norm.includes('position')) {
+      return candidate.currentTitle || ''
+    }
+    if (norm.includes('company') || norm.includes('organization') || norm.includes('employer')) {
+      return candidate.currentCompany || ''
+    }
+    if (norm.includes('experience') || norm.includes('years') || norm.includes('exp') || norm.includes('10 + year')) {
+      return candidate.totalExperience || ''
+    }
+    if (norm.includes('matching') && norm.includes('skill')) {
+      return (candidate.matchingSkills || []).join(', ')
+    }
+    if (norm.includes('skill')) {
+      return (candidate.skills || []).join(', ')
+    }
+    if (norm.includes('score') || norm.includes('rating')) {
+      return candidate.matchScore !== undefined ? `${candidate.matchScore}%` : ''
+    }
+    if (norm.includes('call') || norm.includes('screening')) {
+      return candidate.recommendation || candidate.stage || 'New'
+    }
+    if (norm.includes('recommendation') || norm.includes('decision') || norm.includes('fit')) {
+      return candidate.recommendation || ''
+    }
     if (norm.includes('education') || norm.includes('degree') || norm.includes('qualification')) {
       if (Array.isArray(candidate.education)) {
         return candidate.education.map((e: any) => typeof e === 'string' ? e : `${e.degree || ''} (${e.institution})`).join('; ')
       }
       return String(candidate.education || '')
     }
-    if (norm.includes('certif')) return (candidate.certifications || []).join(', ')
-    if (norm.includes('authorization') || norm.includes('visa') || norm.includes('work auth')) return candidate.workAuthorization || ''
-    if (norm.includes('availability') || norm.includes('notice')) return candidate.availability || ''
-    if (norm.includes('resume') || norm.includes('link') || norm.includes('cv') || norm.includes('drive')) return resumeRef
+    if (norm.includes('certif')) {
+      return (candidate.certifications || []).join(', ')
+    }
+    if (norm.includes('viza') || norm.includes('visa') || norm.includes('authorization') || norm.includes('work auth')) {
+      return candidate.workAuthorization || ''
+    }
+    if (norm.includes('availability') || norm.includes('notice')) {
+      return candidate.availability || ''
+    }
+    if (norm.includes('share') || norm.includes('client')) {
+      return candidate.recommendation === 'Strong Match' || candidate.recommendation === 'Good Match' ? 'Yes' : 'Under Review'
+    }
+    if (norm.includes('portal') || norm.includes('source')) {
+      return (candidate as any).externalSource || (candidate as any).source || 'Google Drive'
+    }
+
+    // 4. Resume document / drive link reference (strictly for actual document link/file columns)
+    if (
+      (norm.includes('resume') && (norm.includes('link') || norm.includes('url') || norm.includes('file') || norm.includes('drive') || norm === 'resume')) ||
+      (norm.includes('cv') && (norm.includes('link') || norm.includes('url') || norm.includes('file') || norm === 'cv')) ||
+      norm.includes('drive link') ||
+      norm === 'resume' ||
+      norm === 'cv' ||
+      norm === 'link' ||
+      norm === 'url'
+    ) {
+      return resumeRef
+    }
+
     if (norm.includes('status') || norm.includes('stage')) return candidate.stage || 'New'
 
     return ''
@@ -240,74 +329,144 @@ export async function syncCandidateToGoogleSheets(
       activeColumns = existingRows[0]
     }
 
-    const rowValues = formatCandidateRow(candidate, activeColumns)
+    const userSelectedColumns = options.columns && options.columns.length > 0 ? options.columns : undefined
+    const rawRowValues = formatCandidateRow(candidate, activeColumns, userSelectedColumns)
+    // Sanitize + and = to prevent Google Sheets formula #ERROR!
+    const rowValues = rawRowValues.map((v) => {
+      const s = String(v ?? '')
+      if (s.startsWith('+') || s.startsWith('=')) {
+        return `'${s}`
+      }
+      return s
+    })
 
-    // Check for existing candidate row (by email or normalized name)
+    // Pad row values up to 26 columns (A-Z) so that any stale displaced cells to the right are cleared
+    const paddedValues = [...rowValues]
+    while (paddedValues.length < 26) {
+      paddedValues.push('')
+    }
+
+    // Check for existing candidate row (by email, phone, resume file link, or clean name)
     let targetRowIndex = -1
     const candidateEmail = (candidate.email || '').toLowerCase().trim()
     const candidateName = (candidate.fullName || '').toLowerCase().trim()
+    const candidatePhone = (candidate.phone || '').replace(/\D/g, '').slice(-10)
+    const sourceFileId = candidate.sourceFileId || ''
+    const sourceFileName = (candidate.sourceFile || '').toLowerCase().trim()
 
-    // Find email column index and name column index
+    // Find email, name, phone, and resume column indexes
     let nameColIdx = 0
     let emailColIdx = 1
+    let phoneColIdx = -1
+    let resumeColIdx = -1
+
     for (let c = 0; c < activeColumns.length; c++) {
       const colLower = activeColumns[c].toLowerCase().trim()
       if (colLower.includes('name') || colLower === 'candidate') nameColIdx = c
       if (colLower.includes('email') || colLower === 'mail') emailColIdx = c
+      if (colLower.includes('phone') || colLower.includes('mobile') || colLower.includes('contact')) phoneColIdx = c
+      if (colLower.includes('resume') || colLower.includes('link') || colLower.includes('url')) resumeColIdx = c
     }
 
-    for (let i = 1; i < existingRows.length; i++) {
-      const row = existingRows[i]
-      const rowName = (row[nameColIdx] || '').toLowerCase().trim()
-      const rowEmail = (row[emailColIdx] || '').toLowerCase().trim()
+    // If candidate already has a known sheet row ID that points to an existing row
+    if (candidate.googleSheetsRowId && candidate.googleSheetsRowId >= 2 && candidate.googleSheetsRowId <= existingRows.length) {
+      targetRowIndex = candidate.googleSheetsRowId
+    }
 
-      if ((candidateEmail && rowEmail === candidateEmail) || (candidateName && rowName === candidateName)) {
-        targetRowIndex = i + 1 // 1-indexed for Sheets API
-        break
+    if (targetRowIndex <= 0) {
+      for (let i = 1; i < existingRows.length; i++) {
+        const row = existingRows[i]
+        const rowName = (row[nameColIdx] || row[0] || '').toLowerCase().trim()
+        const rowEmail = (row[emailColIdx] || row[2] || '').toLowerCase().trim()
+        const rowPhone = phoneColIdx >= 0 ? (row[phoneColIdx] || '').replace(/\D/g, '').slice(-10) : ''
+
+        // 1. Exact email match
+        if (candidateEmail && rowEmail && rowEmail === candidateEmail) {
+          targetRowIndex = i + 1
+          break
+        }
+
+        // 2. Drive file ID or resume file name match across ANY cell in the row
+        if (sourceFileId) {
+          const hasFileId = row.some((cell) => typeof cell === 'string' && cell.includes(sourceFileId))
+          if (hasFileId) {
+            targetRowIndex = i + 1
+            break
+          }
+        }
+        if (sourceFileName && sourceFileName.length > 5) {
+          const hasFileName = row.some((cell) => typeof cell === 'string' && cell.toLowerCase().includes(sourceFileName))
+          if (hasFileName) {
+            targetRowIndex = i + 1
+            break
+          }
+        }
+
+        // 3. Phone match (last 10 or 7 digits)
+        if (candidatePhone && candidatePhone.length >= 7 && rowPhone && rowPhone.length >= 7) {
+          if (rowPhone.slice(-7) === candidatePhone.slice(-7)) {
+            targetRowIndex = i + 1
+            break
+          }
+        }
+
+        // 4. Clean human name match (only if not generic "Candidate" and not empty)
+        const isRealName = candidateName && candidateName !== 'candidate' && candidateName.length >= 4
+        const isRealRowName = rowName && rowName !== 'candidate' && rowName.length >= 4
+        if (isRealName && isRealRowName && candidateName === rowName) {
+          targetRowIndex = i + 1
+          break
+        }
       }
     }
 
-    let finalRowId = targetRowIndex
+    // 5. If candidate still not found, reuse an unassigned placeholder "Candidate" row (no email, no phone)
+    if (targetRowIndex <= 0) {
+      for (let i = 1; i < existingRows.length; i++) {
+        const row = existingRows[i]
+        const rowName = (row[nameColIdx] || row[0] || '').toLowerCase().trim()
+        const rowEmail = (row[emailColIdx] || row[2] || '').toLowerCase().trim()
+        const rowPhone = phoneColIdx >= 0 ? (row[phoneColIdx] || '').replace(/\D/g, '').trim() : ''
 
-    if (targetRowIndex > 0) {
-      // Update existing row
-      const updateUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-        spreadsheetId
-      )}/values/${encodeURIComponent(sheetName)}!A${targetRowIndex}:Z${targetRowIndex}?valueInputOption=USER_ENTERED`
-
-      const updateRes = await fetch(updateUrl, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ values: [rowValues] }),
-      })
-
-      if (!updateRes.ok) {
-        throw new Error(`Sheets update failed with HTTP ${updateRes.status}: ${await updateRes.text()}`)
+        if (rowName === 'candidate' && !rowEmail && !rowPhone) {
+          targetRowIndex = i + 1
+          break
+        }
       }
-    } else {
-      // Append new row
-      const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-        spreadsheetId
-      )}/values/${encodeURIComponent(sheetName)}!A:Z:append?valueInputOption=USER_ENTERED`
-
-      const appendRes = await fetch(appendUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ values: [rowValues] }),
-      })
-
-      if (!appendRes.ok) {
-        throw new Error(`Sheets append failed with HTTP ${appendRes.status}: ${await appendRes.text()}`)
-      }
-
-      finalRowId = existingRows.length + 1
     }
+
+    // 6. If still not found, find first completely empty row in Column A or append after last row
+    if (targetRowIndex <= 0) {
+      let firstEmptyRow = -1
+      for (let i = 1; i < existingRows.length; i++) {
+        const row = existingRows[i]
+        if (!row[0]?.trim() && !row[nameColIdx]?.trim()) {
+          firstEmptyRow = i + 1
+          break
+        }
+      }
+      targetRowIndex = firstEmptyRow > 0 ? firstEmptyRow : existingRows.length + 1
+    }
+
+    // Write row directly starting at Column A (never use :append which can offset into Column W)
+    const writeUrl = `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
+      spreadsheetId
+    )}/values/${encodeURIComponent(sheetName)}!A${targetRowIndex}:Z${targetRowIndex}?valueInputOption=USER_ENTERED`
+
+    const writeRes = await fetch(writeUrl, {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ values: [paddedValues] }),
+    })
+
+    if (!writeRes.ok) {
+      throw new Error(`Sheets sync failed with HTTP ${writeRes.status}: ${await writeRes.text()}`)
+    }
+
+    const finalRowId = targetRowIndex
 
     // Update candidate in MongoDB
     if (candId) {

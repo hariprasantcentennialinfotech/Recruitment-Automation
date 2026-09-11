@@ -5,6 +5,7 @@ import { SignupCard } from '@/components/auth/signup-card'
 import { AdminPortal } from '@/components/admin/admin-portal'
 import { JobSettingsModal } from '@/components/jobs/job-settings-modal'
 import { DriveHierarchyManager } from '@/components/automation/drive-hierarchy-manager'
+import { LandingPage } from '@/components/landing/landing-page'
 import {
   Activity,
   BarChart3,
@@ -39,7 +40,8 @@ import {
   Sparkles,
   Users,
   X,
-  Loader2
+  Loader2,
+  Coins
 } from 'lucide-react'
 
 type Job = {
@@ -100,6 +102,7 @@ type MatchResult = {
 export default function Page() {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [signedIn, setSignedIn] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
   const [organization, setOrganization] = useState('')
   const [workspaceReady, setWorkspaceReady] = useState(false)
   const [activeView, setActiveView] = useState('Overview')
@@ -134,6 +137,9 @@ export default function Page() {
         }
       })
       .catch(() => {})
+      .finally(() => {
+        setCheckingAuth(false)
+      })
 
     const params = new URLSearchParams(window.location.search)
     const authError = params.get('auth_error')
@@ -257,8 +263,26 @@ export default function Page() {
     }
   }
 
+  if (checkingAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#07090e]">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="size-8 animate-spin text-indigo-500" />
+          <p className="text-xs font-semibold text-slate-400">Loading TalentFlow AI...</p>
+        </div>
+      </div>
+    )
+  }
+
   if (!signedIn) {
-    return <AuthScreen onAuthSuccess={handleAuthSuccess} />
+    return (
+      <LandingPage
+        onAuthSuccess={handleAuthSuccess}
+        onOpenAdminLogin={() => {
+          window.location.href = '/admin'
+        }}
+      />
+    )
   }
 
   if (!workspaceReady) {
@@ -342,13 +366,25 @@ export default function Page() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveView('Admin')}
-              className="hidden sm:flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
+            {/* User Credits Badge */}
+            <div
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold shadow-2xs ${
+                (currentUser?.credits ?? 0) < 6
+                  ? 'border-rose-500/30 bg-rose-50 text-rose-700'
+                  : (currentUser?.credits ?? 0) < 30
+                  ? 'border-amber-500/30 bg-amber-50 text-amber-700'
+                  : 'border-emerald-500/30 bg-emerald-50 text-emerald-700'
+              }`}
+              title={`Balance: ${(currentUser?.credits ?? 0).toLocaleString()} credits (Costs 6 credits per processed resume)`}
             >
-              <Building2 className="size-3.5" />
+              <Coins className="size-3.5" />
+              <span>{(currentUser?.credits ?? 0).toLocaleString()} Credits</span>
+            </div>
+
+            <div className="hidden sm:flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs font-semibold text-foreground">
+              <Building2 className="size-3.5 text-muted-foreground" />
               <span>Workspace: {organization}</span>
-            </button>
+            </div>
 
             <button
               onClick={() => announce('No new notifications')}
@@ -393,6 +429,12 @@ export default function Page() {
           </div>
         </div>
       </header>
+
+      {currentUser && (currentUser.credits ?? 0) < 6 && (
+        <div className="border-b border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-center text-xs font-semibold text-rose-700 dark:text-rose-300">
+          ⚠️ Low credits warning (Balance: {(currentUser.credits ?? 0).toLocaleString()} credits). Resume processing requires 6 credits per resume. Please contact your administrator to allocate credits.
+        </div>
+      )}
 
       {/* Main Layout */}
       <div className="mx-auto grid max-w-[1440px] gap-8 px-5 py-8 lg:grid-cols-[220px_1fr] lg:px-10 lg:py-10">
@@ -460,35 +502,37 @@ export default function Page() {
               </div>
             </div>
 
-            <div>
-              <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                Super Admin
-              </p>
-              <div className="flex flex-col gap-1">
-                <button
-                  onClick={() => setActiveView('Admin')}
-                  className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition ${
-                    activeView === 'Admin'
-                      ? 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-primary bg-primary/5 hover:bg-primary/10'
-                  }`}
-                >
-                  <span className="flex items-center gap-3">
-                    <ShieldCheck className="size-[18px]" />
-                    Admin Portal
-                  </span>
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+            {currentUser?.role === 'superadmin' && (
+              <div>
+                <p className="mb-3 px-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Super Admin
+                </p>
+                <div className="flex flex-col gap-1">
+                  <button
+                    onClick={() => setActiveView('Admin')}
+                    className={`flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-medium transition ${
                       activeView === 'Admin'
-                        ? 'bg-primary-foreground/20 text-primary-foreground'
-                        : 'bg-primary/20 text-primary'
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-primary bg-primary/5 hover:bg-primary/10'
                     }`}
                   >
-                    B2B
-                  </span>
-                </button>
+                    <span className="flex items-center gap-3">
+                      <ShieldCheck className="size-[18px]" />
+                      Admin Portal
+                    </span>
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        activeView === 'Admin'
+                          ? 'bg-primary-foreground/20 text-primary-foreground'
+                          : 'bg-primary/20 text-primary'
+                      }`}
+                    >
+                      B2B
+                    </span>
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="rounded-2xl bg-primary p-4 text-primary-foreground shadow-lg shadow-primary/10">
               <p className="mb-1 text-sm font-semibold">Live Database</p>

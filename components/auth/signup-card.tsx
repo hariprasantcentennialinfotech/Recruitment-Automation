@@ -342,6 +342,10 @@ export function SignupCard({ initialMode = 'signup', onSuccess }: AuthCardProps)
         <Link href="/terms-and-conditions" className="hover:text-slate-600 transition underline underline-offset-2">
           Terms &amp; Conditions
         </Link>
+        <span>•</span>
+        <Link href="/admin" className="hover:text-blue-600 transition font-medium text-slate-500">
+          Admin Portal
+        </Link>
       </div>
     </div>
   )

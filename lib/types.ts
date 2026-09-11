@@ -136,6 +136,9 @@ export interface JobAutomationConfig {
   googleSheetsSheetName: string
   sheetColumns?: string[]
   enabled: boolean
+  activeMode?: boolean
+  watchIntervalMinutes?: number
+  lastScannedAt?: string | Date | null
   scoringWeights?: ScoringWeights
   cachedJdText?: string
   cachedJdAnalysis?: CachedJdAnalysis

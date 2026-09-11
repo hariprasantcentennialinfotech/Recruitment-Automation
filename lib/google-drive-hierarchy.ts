@@ -77,12 +77,14 @@ export async function listDriveFolderChildren(
 export async function getSheetColumns(
   spreadsheetId: string,
   token?: string | null,
-  organizationId?: string
-): Promise<{ sheetName: string; columns: string[] }> {
+  organizationId?: string,
+  requestedSheetName?: string
+): Promise<{ sheetName: string; columns: string[]; availableSheets?: string[] }> {
   const authToken = token || (await getSheetsAccessToken(organizationId))
   if (!authToken) {
     return {
-      sheetName: 'Candidate Tracking',
+      sheetName: requestedSheetName || 'Candidate Tracking',
+      availableSheets: [requestedSheetName || 'Candidate Tracking'],
       columns: [
         'Candidate Name',
         'Email',
@@ -101,7 +103,7 @@ export async function getSheetColumns(
   }
 
   try {
-    // 1. Fetch spreadsheet metadata to get the first sheet name
+    // 1. Fetch spreadsheet metadata to get the available sheets
     const metaRes = await fetch(
       `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(spreadsheetId)}?fields=sheets.properties`,
       {
@@ -109,11 +111,23 @@ export async function getSheetColumns(
       }
     )
 
-    let sheetName = 'Candidate Tracking'
+    let sheetName = requestedSheetName || 'Candidate Tracking'
+    const availableSheets: string[] = []
     if (metaRes.ok) {
       const meta = await metaRes.json()
-      const firstSheet = meta.sheets?.[0]?.properties?.title
-      if (firstSheet) sheetName = firstSheet
+      if (Array.isArray(meta.sheets)) {
+        for (const s of meta.sheets) {
+          const title = s?.properties?.title
+          if (title) availableSheets.push(title)
+        }
+      }
+      if (!requestedSheetName && availableSheets.length > 0) {
+        sheetName = availableSheets[0]
+      } else if (requestedSheetName && availableSheets.includes(requestedSheetName)) {
+        sheetName = requestedSheetName
+      } else if (availableSheets.length > 0) {
+        sheetName = availableSheets[0]
+      }
     }
 
     // 2. Fetch Row 1 values
@@ -131,13 +145,14 @@ export async function getSheetColumns(
       if (Array.isArray(row) && row.length > 0) {
         const columns = row.map((col: any) => String(col).trim()).filter(Boolean)
         if (columns.length > 0) {
-          return { sheetName, columns }
+          return { sheetName, columns, availableSheets }
         }
       }
     }
 
     return {
       sheetName,
+      availableSheets,
       columns: [
         'Candidate Name',
         'Email',
@@ -156,7 +171,8 @@ export async function getSheetColumns(
   } catch (err) {
     console.warn('[google-drive-hierarchy] Failed to read sheet columns:', err)
     return {
-      sheetName: 'Candidate Tracking',
+      sheetName: requestedSheetName || 'Candidate Tracking',
+      availableSheets: requestedSheetName ? [requestedSheetName] : ['Candidate Tracking'],
       columns: [
         'Candidate Name',
         'Email',

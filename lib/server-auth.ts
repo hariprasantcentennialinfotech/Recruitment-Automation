@@ -37,7 +37,19 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser | null> 
   const session = await getSession()
   if (!session) return null
 
+  if (session.role === 'superadmin' || session.userId === 'admin_root') {
+    return {
+      userId: session.userId,
+      email: session.email,
+      fullName: session.fullName,
+      organization: session.organization || session.company || 'centennial',
+      role: 'superadmin',
+      isSuperAdmin: true,
+    }
+  }
+
   try {
+    if (!ObjectId.isValid(session.userId)) return null
     const col = usersCollection()
     const user = await col.findOne({ _id: new ObjectId(session.userId) })
     if (!user) return null

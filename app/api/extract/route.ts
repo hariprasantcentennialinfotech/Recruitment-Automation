@@ -70,6 +70,11 @@ export async function POST(request: Request) {
       allowSimulation: false,
     })
 
+    const recordError = record.error || (record as any).errorMessage
+    if (record.status === 'FAILED' && recordError?.includes('credits')) {
+      return NextResponse.json({ error: recordError }, { status: 402 })
+    }
+
     // Return in the format the UI expects
     return NextResponse.json({
       id: record.candidateId || record.id,

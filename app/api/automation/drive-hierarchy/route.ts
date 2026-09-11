@@ -39,6 +39,9 @@ export async function GET(req: Request) {
         sheetName: cfg?.googleSheetsSheetName || 'Candidate Tracking',
         sheetColumns: cfg?.sheetColumns || [],
         enabled: Boolean(cfg?.enabled),
+        activeMode: Boolean(cfg?.activeMode ?? cfg?.enabled ?? false),
+        watchIntervalMinutes: Number(cfg?.watchIntervalMinutes) || 5,
+        lastScannedAt: cfg?.lastScannedAt ? new Date(cfg.lastScannedAt).toISOString() : null,
         isConfigured: Boolean(
           cfg?.googleDriveResumeFolderId &&
           cfg?.googleDriveJdFileId &&

@@ -26,6 +26,7 @@ export async function GET() {
             image: user.image,
             provider: user.provider,
             role: user.role || 'recruiter',
+            credits: typeof user.credits === 'number' ? user.credits : 0,
           }
         })
       }

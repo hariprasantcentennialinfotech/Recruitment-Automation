@@ -46,3 +46,11 @@ export function organizationAutomationSettingsCollection() {
   return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('organization_automation_settings')
 }
 
+export function creditTransactionsCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('credit_transactions')
+}
+
+export function geminiModelUsageCollection() {
+  return getMongoClient().db(process.env.MONGODB_DATABASE ?? 'talentflow').collection('gemini_model_usage')
+}
+

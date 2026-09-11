@@ -3,6 +3,7 @@ import { ObjectId } from 'mongodb'
 import { jobsCollection, jobAutomationConfigCollection, activitiesCollection } from '@/lib/mongodb'
 import { requireOrganization, isAuthError } from '@/lib/server-auth'
 import { JobAutomationConfig } from '@/lib/types'
+import { extractGoogleId } from '@/lib/google-drive-hierarchy'
 
 // GET /api/jobs/[id]/automation — retrieve job automation config
 export async function GET(
@@ -38,7 +39,11 @@ export async function GET(
           googleDriveJdFileId: existingConfig.googleDriveJdFileId || '',
           googleSheetsSpreadsheetId: existingConfig.googleSheetsSpreadsheetId || '',
           googleSheetsSheetName: existingConfig.googleSheetsSheetName || 'Candidate Tracking',
-          enabled: Boolean(existingConfig.enabled),
+          sheetColumns: existingConfig.sheetColumns || [],
+          enabled: existingConfig.enabled,
+          activeMode: existingConfig.activeMode ?? existingConfig.enabled ?? false,
+          watchIntervalMinutes: existingConfig.watchIntervalMinutes || 5,
+          lastScannedAt: existingConfig.lastScannedAt || null,
           createdAt: existingConfig.createdAt,
           updatedAt: existingConfig.updatedAt,
         }
@@ -49,7 +54,11 @@ export async function GET(
           googleDriveJdFileId: '',
           googleSheetsSpreadsheetId: '',
           googleSheetsSheetName: 'Candidate Tracking',
+          sheetColumns: [],
           enabled: false,
+          activeMode: false,
+          watchIntervalMinutes: 5,
+          lastScannedAt: null,
         }
 
     return NextResponse.json({
@@ -99,20 +108,30 @@ export async function PUT(
       googleDriveJdFileId = '',
       googleSheetsSpreadsheetId = '',
       googleSheetsSheetName = 'Candidate Tracking',
-      enabled = false,
+      sheetColumns = [],
+      enabled = true,
+      activeMode,
+      watchIntervalMinutes,
     } = body
 
     const autoCol = jobAutomationConfigCollection()
     const now = new Date()
 
-    const updateDoc = {
+    const cleanResumeFolderId = extractGoogleId(String(googleDriveResumeFolderId || '').trim())
+    const cleanJdFileId = extractGoogleId(String(googleDriveJdFileId || '').trim())
+    const cleanSpreadsheetId = extractGoogleId(String(googleSheetsSpreadsheetId || '').trim())
+
+    const updateDoc: any = {
       jobId: id,
       organizationId: organization,
-      googleDriveResumeFolderId: String(googleDriveResumeFolderId).trim(),
-      googleDriveJdFileId: String(googleDriveJdFileId).trim(),
-      googleSheetsSpreadsheetId: String(googleSheetsSpreadsheetId).trim(),
+      googleDriveResumeFolderId: cleanResumeFolderId,
+      googleDriveJdFileId: cleanJdFileId,
+      googleSheetsSpreadsheetId: cleanSpreadsheetId,
       googleSheetsSheetName: String(googleSheetsSheetName).trim() || 'Candidate Tracking',
+      sheetColumns: Array.isArray(sheetColumns) ? sheetColumns.filter(Boolean) : [],
       enabled: Boolean(enabled),
+      activeMode: activeMode !== undefined ? Boolean(activeMode) : Boolean(enabled),
+      watchIntervalMinutes: watchIntervalMinutes ? Math.max(1, Number(watchIntervalMinutes)) : 5,
       updatedAt: now,
     }
 
@@ -131,7 +150,7 @@ export async function PUT(
       await actCol.insertOne({
         organization,
         title: 'Job automation configuration updated',
-        detail: `${job.title} · Automation ${enabled ? 'Enabled' : 'Disabled'}`,
+        detail: `${job.title} · JD: ${cleanJdFileId ? 'Configured' : 'None'}, Folder: ${cleanResumeFolderId ? 'Configured' : 'None'}, Sheet: ${cleanSpreadsheetId ? 'Configured' : 'None'} (${updateDoc.sheetColumns.length} columns selected)`,
         type: 'system',
         createdAt: now,
       } as any)

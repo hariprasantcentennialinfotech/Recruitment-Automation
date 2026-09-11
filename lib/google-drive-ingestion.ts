@@ -1,4 +1,5 @@
 import crypto from 'node:crypto'
+import zlib from 'node:zlib'
 import { ObjectId } from 'mongodb'
 import mammoth from 'mammoth'
 import {
@@ -16,13 +17,84 @@ import {
 } from '@/lib/types'
 import {
   extractCandidateFromResume,
+  extractCandidateFromPdfBuffer,
   extractCandidateWithCustomColumns,
   analyzeJobDescription,
   evaluateCandidateAgainstJd,
   JdAnalysis,
+  CandidateExtraction,
 } from '@/lib/gemini-ai'
 import { syncCandidateToGoogleSheets } from '@/lib/google-sheets-sync'
 import { getDriveAccessToken } from '@/lib/google-auth-token'
+import { deductResumeCredits, RESUME_PROCESSING_CREDIT_COST } from '@/lib/credits'
+
+// ─── PDF.js / pdf-parse Polyfills for Node.js Runtime ─────────────────────────
+
+/**
+ * Ensures DOMMatrix, Path2D, and ImageData exist in globalThis before pdf-parse or pdfjs-dist runs.
+ * Modern pdfjs-dist references DOMMatrix at module top-level, causing ReferenceError in Node without polyfill.
+ */
+function ensurePdfJsGlobals() {
+  if (typeof (globalThis as any).DOMMatrix === 'undefined') {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const canvas = require('@napi-rs/canvas')
+      if (canvas?.DOMMatrix) (globalThis as any).DOMMatrix = canvas.DOMMatrix
+      if (canvas?.Path2D && !(globalThis as any).Path2D) (globalThis as any).Path2D = canvas.Path2D
+      if (canvas?.ImageData && !(globalThis as any).ImageData) (globalThis as any).ImageData = canvas.ImageData
+    } catch {
+      // Robust minimal DOMMatrix polyfill when canvas native addon is unavailable
+      class DOMMatrixStub {
+        a = 1; b = 0; c = 0; d = 1; e = 0; f = 0;
+        m11 = 1; m12 = 0; m13 = 0; m14 = 0;
+        m21 = 0; m22 = 1; m23 = 0; m24 = 0;
+        m31 = 0; m32 = 0; m33 = 1; m34 = 0;
+        m41 = 0; m42 = 0; m43 = 0; m44 = 1;
+        is2D = true;
+        isIdentity = true;
+        constructor(init?: any) {
+          if (Array.isArray(init) && init.length >= 6) {
+            [this.a, this.b, this.c, this.d, this.e, this.f] = init
+          }
+        }
+        translate(x = 0, y = 0) { return this }
+        scale(x = 1, y = 1) { return this }
+        multiply(other: any) { return this }
+        preMultiplySelf(other: any) { return this }
+        multiplySelf(other: any) { return this }
+        invertSelf() { return this }
+        rotate(angle = 0) { return this }
+        transformPoint(p: any) { return p }
+      }
+      ;(globalThis as any).DOMMatrix = DOMMatrixStub
+    }
+  }
+  if (typeof (globalThis as any).Path2D === 'undefined') {
+    class Path2DStub {
+      addPath() {}
+      rect() {}
+      arc() {}
+      closePath() {}
+    }
+    ;(globalThis as any).Path2D = Path2DStub
+  }
+  if (typeof (globalThis as any).ImageData === 'undefined') {
+    class ImageDataStub {
+      data: Uint8ClampedArray
+      width: number
+      height: number
+      constructor(w: number, h: number) {
+        this.width = w
+        this.height = h
+        this.data = new Uint8ClampedArray(w * h * 4)
+      }
+    }
+    ;(globalThis as any).ImageData = ImageDataStub
+  }
+}
+
+// Pre-initialize globals immediately on module load
+ensurePdfJsGlobals()
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -39,10 +111,16 @@ export function normalizePhone(phone?: string): string {
 }
 
 /**
- * Parses text from a PDF Buffer with robust fallbacks.
+ * Parses text from a PDF Buffer with robust fallbacks:
+ * 1. pdf-parse v2 (PDFParse class) with DOMMatrix globals guaranteed
+ * 2. pdf-parse v1 callable format
+ * 3. Zlib-decompressed FlateDecode stream inspection
+ * 4. Raw stream text object extraction
  */
 export async function extractPdfText(buffer: Buffer): Promise<string> {
-  // pdf-parse v2 uses a class-based API — `new PDFParse({ data: buffer }).getText()`
+  ensurePdfJsGlobals()
+
+  // 1. pdf-parse extraction
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const pdfParseModule = require('pdf-parse')
@@ -53,7 +131,6 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
       const parser = new PDFParseClass({ data: buffer })
       const result = await parser.getText()
       await parser.destroy().catch(() => {})
-      // v2 getText() returns { text, pages, info } object or just the text string
       const extracted =
         typeof result === 'string'
           ? result
@@ -72,12 +149,47 @@ export async function extractPdfText(buffer: Buffer): Promise<string> {
       }
     }
   } catch (err) {
-    console.warn('[extractPdfText] pdf-parse failed, falling back to raw stream extraction:', err)
+    console.warn('[extractPdfText] pdf-parse library failed, falling back to stream decomp:', err)
   }
 
-  // Last resort: Extract readable text from PDF binary stream (strips PDF operators & control bytes)
+  // 2. Decompress zlib streams (FlateDecode)
+  try {
+    const rawBinary = buffer.toString('binary')
+    const streamRegex = /stream[\r\n]+([\s\S]*?)[\r\n]+endstream/g
+    let match: RegExpExecArray | null
+    const decompressed: string[] = []
+
+    while ((match = streamRegex.exec(rawBinary)) !== null) {
+      const rawChunk = Buffer.from(match[1], 'binary')
+      try {
+        const inflated = zlib.inflateSync(rawChunk).toString('utf8')
+        decompressed.push(inflated)
+      } catch {
+        // Not zlib compressed, check if readable ASCII
+        const utf8Chunk = rawChunk.toString('utf8')
+        if (/[a-zA-Z]{3,}/.test(utf8Chunk)) {
+          decompressed.push(utf8Chunk)
+        }
+      }
+    }
+
+    const allStreamText = decompressed.join(' ')
+    const tjMatches = allStreamText.match(/\(([^\)\\]{2,})\)\s*(?:Tj|TJ|'|")/g) || []
+    if (tjMatches.length > 0) {
+      const extracted = tjMatches
+        .map((m) => m.replace(/^\(/, '').replace(/\)\s*(?:Tj|TJ|'|")$/, '').trim())
+        .filter((s) => s.length > 1 && /[a-zA-Z]{2,}/.test(s))
+        .join(' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+      if (extracted.length > 30) return extracted
+    }
+  } catch (streamErr) {
+    console.warn('[extractPdfText] Stream inflation fallback failed:', streamErr)
+  }
+
+  // 3. Last resort: Extract readable text from raw binary stream
   const rawText = buffer.toString('utf8')
-  // Extract text within PDF text objects: parenthesised strings  (text)  or Tj/TJ stream items
   const tjMatches = rawText.match(/\(([^\)\\]{2,})\)\s*(?:Tj|TJ|'|")/g) || []
   if (tjMatches.length > 0) {
     const extracted = tjMatches
@@ -242,6 +354,7 @@ export async function processResumeBuffer(params: {
   externalSource?: 'google_drive' | 'manual_upload'
   googleDriveFolderId?: string
   allowSimulation?: boolean
+  forceReprocess?: boolean
 }): Promise<ResumeProcessingRecord> {
   const {
     organizationId,
@@ -253,6 +366,7 @@ export async function processResumeBuffer(params: {
     externalSource = 'google_drive',
     googleDriveFolderId,
     allowSimulation = true,
+    forceReprocess = false,
   } = params
 
   const now = new Date()
@@ -312,8 +426,19 @@ export async function processResumeBuffer(params: {
     $or: [{ sourceFileId }, { googleDriveFileId: sourceFileId }],
   })
 
-  // If already successfully processed or in progress, do nothing (idempotency requirement 10)
-  if (record) {
+  const isGenericRecord =
+    !record?.candidateName ||
+    record.candidateName.toLowerCase() === 'candidate' ||
+    record.candidateName.toLowerCase().includes('competenc') ||
+    record.candidateName.toLowerCase().includes('summary') ||
+    record.candidateName.toLowerCase().includes('resume') ||
+    record.candidateName.toLowerCase().includes('qualification') ||
+    record.candidateName.toLowerCase().includes('highlight')
+
+  const isMissingContact = !record?.normalizedEmail && !record?.normalizedPhone
+
+  // If already successfully processed and NOT force reprocess or incomplete, do nothing
+  if (record && !forceReprocess && !isGenericRecord && !isMissingContact) {
     if (record.status === 'COMPLETED') {
       console.log(
         JSON.stringify({
@@ -377,6 +502,36 @@ export async function processResumeBuffer(params: {
     await recordsCol.updateOne({ _id: recordId }, update as any)
   }
 
+  // STEP 1.5: Enforce Credit Balance (6 credits per resume)
+  const creditDeduction = await deductResumeCredits({
+    organizationId,
+    fileName,
+    candidateName: record?.candidateName,
+  })
+
+  if (!creditDeduction.success) {
+    const errorMsg = creditDeduction.error || `Insufficient credits: ${RESUME_PROCESSING_CREDIT_COST} credits required.`
+    await recordsCol.updateOne(
+      { _id: recordId },
+      {
+        $set: {
+          status: 'FAILED',
+          errorMessage: errorMsg,
+          updatedAt: new Date(),
+        },
+        $push: {
+          stageActivities: {
+            stage: 'Credit check failed',
+            message: errorMsg,
+            timestamp: new Date(),
+          },
+        },
+      } as any
+    )
+    console.warn(`[Credit Check Failed] org=${organizationId} file=${fileName}: ${errorMsg}`)
+    return (await recordsCol.findOne({ _id: recordId })) as any
+  }
+
   try {
     // STEP 2: Extract Resume Text (PDF/DOCX)
     await addStageActivity('Text extracted', `Extracting text content from ${fileName}...`, 'EXTRACTING')
@@ -386,8 +541,19 @@ export async function processResumeBuffer(params: {
     }
 
     let extractedText = ''
+    let candidateProfile: CandidateExtraction | null = null
+
     if (isPdf) {
-      extractedText = await extractPdfText(fileBuffer)
+      try {
+        extractedText = await extractPdfText(fileBuffer)
+      } catch (pdfErr: any) {
+        console.warn(`[Ingestion] extractPdfText failed for ${fileName} (${pdfErr.message}), falling back to Gemini multimodal extraction...`)
+        candidateProfile = await extractCandidateFromPdfBuffer(fileBuffer, fileName)
+        if (!candidateProfile) {
+          throw new Error('Unable to extract text from PDF file. File may be encrypted, scanned image, or corrupt.')
+        }
+        extractedText = `Extracted candidate: ${candidateProfile.candidate_name}. Skills: ${(candidateProfile.skills || []).join(', ')}. Title: ${candidateProfile.current_title || ''}.`
+      }
     } else {
       extractedText = await extractDocxText(fileBuffer)
     }
@@ -425,7 +591,9 @@ export async function processResumeBuffer(params: {
     // STEP 4: AI Extraction with Zod Validation
     await addStageActivity('AI processing', `Analyzing resume structure and extracting profile data...`, 'AI_PROCESSING')
 
-    const candidateProfile = await extractCandidateFromResume(extractedText, fileName)
+    if (!candidateProfile) {
+      candidateProfile = await extractCandidateFromResume(extractedText, fileName)
+    }
     const normEmail = normalizeEmail(candidateProfile.email)
     const normPhone = normalizePhone(candidateProfile.phone)
 
@@ -478,17 +646,34 @@ export async function processResumeBuffer(params: {
       })
     )
 
-    // Duplicate Detection (by sourceFileId, fileHash, normalized email, or phone)
+    // Duplicate & Existing Candidate Detection (by record.candidateId, sourceFileId, email, phone, or fileHash)
     let isDuplicate = false
     let existingCandidate: any = null
 
-    if (normEmail) {
+    // 1. Check if current processing record already has an associated candidate
+    if (record?.candidateId) {
+      try {
+        existingCandidate = await candCol.findOne({ _id: new ObjectId(record.candidateId) })
+      } catch {}
+    }
+
+    // 2. Check by sourceFileId
+    if (!existingCandidate && sourceFileId) {
+      existingCandidate = await candCol.findOne({
+        organization: organizationId,
+        sourceFileId,
+      })
+    }
+
+    // 3. Check by normalized email
+    if (!existingCandidate && normEmail) {
       existingCandidate = await candCol.findOne({
         organization: organizationId,
         email: { $regex: new RegExp(`^${normEmail}$`, 'i') },
       })
     }
 
+    // 4. Check by normalized phone
     if (!existingCandidate && normPhone && normPhone.length >= 7) {
       existingCandidate = await candCol.findOne({
         organization: organizationId,
@@ -496,6 +681,7 @@ export async function processResumeBuffer(params: {
       })
     }
 
+    // 5. Check by fileHash
     if (!existingCandidate && fileHash) {
       const priorRecord = await recordsCol.findOne({
         organizationId,
@@ -532,21 +718,67 @@ export async function processResumeBuffer(params: {
         })
       )
 
-      // Update existing candidate profile with fresh match info
+      // Update existing candidate profile with fresh match info & newly extracted contact info
+      const updateFields: any = {
+        matchingSkills: comparison.matching_skills,
+        missingSkills: comparison.missing_skills,
+        matchScore: comparison.match_score,
+        recommendation: comparison.recommendation,
+        reasoningSummary: comparison.reasoning_summary,
+        scoringBreakdown: comparison.scoring_breakdown,
+        updatedAt: new Date(),
+      }
+
+      const isOldGenericName =
+        !existingCandidate.fullName ||
+        existingCandidate.fullName.toLowerCase() === 'candidate' ||
+        existingCandidate.fullName.toLowerCase().includes('competenc') ||
+        existingCandidate.fullName.toLowerCase().includes('summary') ||
+        existingCandidate.fullName.toLowerCase().includes('qualification') ||
+        existingCandidate.fullName.toLowerCase().includes('highlight')
+
+      if (candidateProfile.candidate_name && candidateProfile.candidate_name !== 'Candidate' && isOldGenericName) {
+        updateFields.fullName = candidateProfile.candidate_name
+      }
+      if (candidateProfile.phone && (!existingCandidate.phone || existingCandidate.phone.trim() === '')) {
+        updateFields.phone = candidateProfile.phone
+      }
+      if (candidateProfile.email && (!existingCandidate.email || existingCandidate.email.trim() === '')) {
+        updateFields.email = candidateProfile.email
+      }
+      const isInvalidExistingLocation = !existingCandidate.location ||
+        existingCandidate.location === 'Remote' ||
+        existingCandidate.location.trim() === '' ||
+        /reporting|competenc|skill|executive|summary|integration|systems/i.test(existingCandidate.location)
+      if (candidateProfile.location && isInvalidExistingLocation) {
+        updateFields.location = candidateProfile.location
+      }
+      if (candidateProfile.current_title && (!existingCandidate.currentTitle || existingCandidate.currentTitle === 'Software Professional')) {
+        updateFields.currentTitle = candidateProfile.current_title
+      }
+      if (candidateProfile.total_experience && !existingCandidate.totalExperience) {
+        updateFields.totalExperience = candidateProfile.total_experience
+      }
+      if (customFields && Object.keys(customFields).length > 0) {
+        updateFields.customFields = {
+          ...(existingCandidate.customFields || {}),
+          ...customFields,
+        }
+      }
+
       await candCol.updateOne(
         { _id: new ObjectId(candidateId) },
-        {
-          $set: {
-            matchingSkills: comparison.matching_skills,
-            missingSkills: comparison.missing_skills,
-            matchScore: comparison.match_score,
-            recommendation: comparison.recommendation,
-            reasoningSummary: comparison.reasoning_summary,
-            scoringBreakdown: comparison.scoring_breakdown,
-            updatedAt: new Date(),
-          },
-        }
+        { $set: updateFields }
       )
+
+      if (sourceFileId) {
+        await candCol.deleteMany({
+          organization: organizationId,
+          sourceFileId,
+          _id: { $ne: new ObjectId(candidateId) },
+          fullName: { $in: ['Candidate', 'CORE COMPETENCIES', 'PROFESSIONAL SUMMARY', ''] },
+        })
+      }
 
       candidateDoc = (await candCol.findOne({ _id: new ObjectId(candidateId) })) as any
     } else {
@@ -630,6 +862,10 @@ export async function processResumeBuffer(params: {
           timestamp: new Date().toISOString(),
         })
       )
+
+      if (!candidateDoc.googleSheetsRowId && (record?.googleSheetsRowId || existingCandidate?.googleSheetsRowId)) {
+        candidateDoc.googleSheetsRowId = record?.googleSheetsRowId || existingCandidate?.googleSheetsRowId
+      }
 
       sheetsSyncResult = await syncCandidateToGoogleSheets(candidateDoc, {
         spreadsheetId: autoConfig.googleSheetsSpreadsheetId,
