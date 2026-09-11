@@ -12,16 +12,16 @@ import {
   Zap,
   Coins,
   ChevronRight,
+  Play,
+  Check,
+  Search,
+  Briefcase,
+  SlidersHorizontal,
+  X,
+  Building2,
   ExternalLink,
   Layers,
-  Search,
-  Users,
-  FileCheck,
-  Clock,
-  Building2,
-  X,
-  Play,
-  Check
+  FileText
 } from 'lucide-react'
 import { SignupCard } from '@/components/auth/signup-card'
 
@@ -34,6 +34,7 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
   const [authModalOpen, setAuthModalOpen] = useState(false)
   const [authMode, setAuthMode] = useState<'signup' | 'signin'>('signup')
   const [activeFaq, setActiveFaq] = useState<number | null>(null)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const openAuth = (mode: 'signup' | 'signin') => {
     setAuthMode(mode)
@@ -88,7 +89,7 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
   const faqs = [
     {
       q: 'How does the Google Drive ingestion watcher work?',
-      a: 'Once configured with your root Google Drive folder and designated job subfolders, our background runner polls the folder at your selected interval (every 5, 15, 30, or 60 minutes) or immediately via the "Run Once" action. It identifies newly uploaded resumes, extracts the details, and avoids re-processing existing candidates.',
+      a: 'Once configured with your root Google Drive folder and designated job subfolders, our background runner polls the folder at your selected interval (every 5, 10, 15, 30, or 60 minutes) or immediately via the "Run Once" action. It identifies newly uploaded resumes, extracts the details, and avoids re-processing existing candidates.',
     },
     {
       q: 'How does the 6-credit billing system work?',
@@ -109,253 +110,278 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
   ]
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 selection:bg-sky-500 selection:text-white">
       {/* Background ambient lighting */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 size-[650px] rounded-full bg-gradient-to-tr from-indigo-600/20 via-purple-600/15 to-transparent blur-3xl" />
-        <div className="absolute top-1/3 -left-48 size-[500px] rounded-full bg-blue-600/10 blur-3xl" />
-        <div className="absolute top-2/3 -right-48 size-[500px] rounded-full bg-emerald-600/10 blur-3xl" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 size-[650px] rounded-full bg-gradient-to-tr from-sky-200/40 via-blue-100/30 to-transparent blur-3xl" />
+        <div className="absolute top-1/3 -left-48 size-[500px] rounded-full bg-cyan-100/30 blur-3xl" />
+        <div className="absolute top-2/3 -right-48 size-[500px] rounded-full bg-blue-100/25 blur-3xl" />
       </div>
 
-      {/* Navigation Bar */}
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-[#07090e]/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+      {/* Floating Header as seen in the theme screenshot */}
+      <div className="sticky top-0 z-40 px-4 pt-3 pb-2">
+        <header className="mx-auto flex max-w-6xl items-center justify-between rounded-2xl border border-slate-200/80 bg-white/95 px-6 py-3.5 shadow-xs backdrop-blur-md">
+          {/* Logo & Website Title */}
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 shadow-md shadow-indigo-500/20">
-              <Sparkles className="size-5 text-white" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-bold tracking-tight text-white text-lg">TalentFlow AI</span>
-                <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] font-bold text-indigo-400 border border-indigo-500/30">
-                  RaaS Engine
-                </span>
-              </div>
-              <p className="text-[11px] font-medium tracking-wider uppercase text-slate-400">
-                Centennial Infotech
-              </p>
+            <img
+              src="/logo.png"
+              alt="Centennial Logo"
+              className="h-8 w-auto object-contain"
+            />
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-xl font-extrabold tracking-tight text-slate-900">
+                Centennial
+              </span>
+              <span className="text-xl font-extrabold tracking-tight text-[#0284c7]">
+                Recruitment Automation
+              </span>
             </div>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-300">
-            <a href="#features" className="transition hover:text-white">
+          {/* Navigation Links with active underline style */}
+          <nav className="hidden lg:flex items-center gap-7 text-sm font-semibold text-slate-600">
+            <a
+              href="#search-bar"
+              className="relative py-1 text-[#0284c7] after:absolute after:bottom-0 after:left-0 after:h-[2px] after:w-full after:bg-[#0284c7]"
+            >
+              Overview
+            </a>
+            <a href="#features" className="py-1 transition hover:text-[#0284c7]">
               Features
             </a>
-            <a href="#pipeline" className="transition hover:text-white">
+            <a href="#pipeline" className="py-1 transition hover:text-[#0284c7]">
               Pipeline Demo
             </a>
-            <a href="#workflow" className="transition hover:text-white">
-              How It Works
-            </a>
-            <a href="#pricing" className="transition hover:text-white">
+            <a href="#pricing" className="py-1 transition hover:text-[#0284c7]">
               Credits & Pricing
             </a>
-            <a href="#faq" className="transition hover:text-white">
+            <a href="#faq" className="py-1 transition hover:text-[#0284c7]">
               FAQ
             </a>
           </nav>
 
+          {/* Authentication Actions */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => openAuth('signin')}
-              className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-200 transition hover:bg-white/5 hover:text-white"
+              className="text-sm font-bold text-slate-700 transition hover:text-[#0284c7] px-3 py-1.5"
             >
               Sign In
             </button>
             <button
               onClick={() => openAuth('signup')}
-              className="group relative inline-flex items-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-indigo-500/25 transition hover:shadow-indigo-500/40 hover:scale-[1.02] active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-xl bg-[#0284c7] px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-sky-500/20 transition hover:bg-[#0369a1] hover:scale-[1.01] active:scale-[0.99]"
             >
               <span>Get Started Free</span>
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+              <ArrowRight className="size-4" />
             </button>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
 
       {/* Hero Section */}
-      <section className="relative px-6 pt-20 pb-16 lg:pt-28 lg:pb-24">
-        <div className="mx-auto max-w-5xl text-center">
-          {/* Eyebrow badge */}
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-1.5 text-xs font-semibold text-indigo-300 backdrop-blur-md mb-8">
-            <Sparkles className="size-3.5 text-indigo-400" />
-            <span>Autonomous Recruitment as a Service (RaaS)</span>
-            <span className="text-white/30">•</span>
-            <span className="text-emerald-400 font-bold">6 Credits / Resume</span>
+      <section className="relative px-6 pt-14 pb-12 lg:pt-20 lg:pb-16 text-center">
+        <div className="mx-auto max-w-4xl">
+          {/* Eyebrow badge styled exactly like the screenshot */}
+          <div className="inline-flex items-center gap-2 rounded-full bg-sky-50 border border-sky-200/80 px-4 py-1.5 text-xs font-extrabold text-[#0284c7] tracking-wider uppercase shadow-2xs mb-6">
+            <span className="size-1.5 rounded-full bg-[#0284c7]" />
+            <span>DISCOVER AUTONOMOUS RECRUITMENT AUTOMATION</span>
           </div>
 
-          <h1 className="text-4xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
-            <span className="text-white">Eliminate Manual Sourcing with </span>
-            <span className="bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
-              Autonomous AI Ingestion
-            </span>
+          {/* Headline matching screenshot typography */}
+          <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-6xl lg:text-7xl leading-tight">
+            Recruitment <span className="text-[#0284c7]">Automation</span>
           </h1>
 
-          <p className="mx-auto mt-6 max-w-3xl text-lg text-slate-300 sm:text-xl font-normal leading-relaxed">
-            Continuously watch Google Drive folders, extract candidate profiles with multi-tier Google Gemini models, match JD requirements, and sync customized columns to Google Sheets automatically.
+          <p className="mx-auto mt-4 max-w-2xl text-base sm:text-lg text-slate-600 font-normal leading-relaxed">
+            Where talent sourcing learns, grows, and connects with opportunities at Centennial through intelligent Google Gemini AI.
           </p>
 
-          {/* Action CTAs */}
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
-            <button
-              onClick={() => openAuth('signup')}
-              className="inline-flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 px-8 py-4 text-base font-bold text-white shadow-xl shadow-indigo-500/30 transition hover:shadow-indigo-500/50 hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <span>Start Free 14-Day Trial</span>
-              <ArrowRight className="size-5" />
-            </button>
+          {/* Floating Pill Search & Filter Bar as shown in the user screenshot */}
+          <div id="search-bar" className="mx-auto mt-9 max-w-3xl">
+            <div className="flex flex-col sm:flex-row items-center rounded-2xl sm:rounded-full border border-slate-200 bg-white p-2 sm:p-2.5 shadow-md shadow-slate-200/50">
+              {/* Search Input */}
+              <div className="relative flex-1 w-full sm:w-auto px-4 py-2 sm:py-0">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by role, company, or skills (e.g. Salesforce PM, UI Designer)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent pl-7 pr-3 text-sm text-slate-800 placeholder-slate-400 outline-none"
+                />
+              </div>
 
-            <a
-              href="#pipeline"
-              className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-6 py-4 text-base font-semibold text-slate-200 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-            >
-              <Play className="size-4 text-indigo-400 fill-indigo-400" />
-              <span>Explore Live Flow</span>
-            </a>
+              {/* Divider */}
+              <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
+
+              {/* Categories */}
+              <div className="flex items-center gap-2 px-4 py-2 sm:py-0 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer w-full sm:w-auto justify-between sm:justify-start">
+                <Briefcase className="size-4 text-slate-400" />
+                <span>All Categories</span>
+              </div>
+
+              {/* Divider */}
+              <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
+
+              {/* Filter Types */}
+              <div className="flex items-center gap-2 px-4 py-2 sm:py-0 text-xs font-semibold text-slate-600 hover:text-slate-900 cursor-pointer w-full sm:w-auto justify-between sm:justify-start">
+                <SlidersHorizontal className="size-4 text-slate-400" />
+                <span>All Types</span>
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={() => openAuth('signup')}
+                className="w-full sm:w-auto rounded-xl sm:rounded-full bg-[#0284c7] px-6 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-[#0369a1] transition"
+              >
+                Search
+              </button>
+            </div>
           </div>
 
-          {/* Social Proof / Integrations */}
-          <div className="mt-14 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-xs font-semibold uppercase tracking-wider text-slate-400">
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-400" /> Google Drive Folder Watcher
+          {/* Quick Stats / Trust Indicators */}
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-x-8 gap-y-3 text-xs font-semibold text-slate-500">
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-4 text-emerald-500" /> Google Drive Folder Watcher
             </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-400" /> Google Gemini 2.0 & Flash
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-4 text-emerald-500" /> Multimodal Gemini 2.0 AI
             </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-400" /> Custom Sheet Column Mapping
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-4 text-emerald-500" /> Custom Sheet Column Mapping
             </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle2 className="size-4 text-emerald-400" /> MongoDB Atlas Multi-Tenant
+            <span className="flex items-center gap-1.5">
+              <CheckCircle2 className="size-4 text-emerald-500" /> 6 Credits / Resume
             </span>
           </div>
         </div>
 
-        {/* Live Interactive Pipeline Visualizer */}
-        <div id="pipeline" className="mx-auto mt-16 max-w-6xl">
-          <div className="relative rounded-3xl border border-white/15 bg-white/[0.03] p-6 shadow-2xl backdrop-blur-2xl sm:p-8 lg:p-10">
-            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
+        {/* Live Interactive Pipeline Visualizer (Light Centennial Theme) */}
+        <div id="pipeline" className="mx-auto mt-14 max-w-5xl text-left">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 sm:p-8 shadow-md">
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
               <div className="flex items-center gap-3">
                 <span className="flex size-3 rounded-full bg-emerald-500 animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
+                <span className="text-xs font-bold uppercase tracking-wider text-emerald-700">
                   Live Autonomous Workflow Engine
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <span className="rounded-md bg-white/5 px-2.5 py-1 font-mono">Watch Interval: 5 mins</span>
-                <span className="rounded-md bg-indigo-500/20 px-2.5 py-1 font-mono text-indigo-300">Cost: 6 Credits / sync</span>
+              <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
+                <span className="rounded-md bg-slate-100 px-2.5 py-1 font-mono text-slate-700">Watch Interval: 5 mins</span>
+                <span className="rounded-md bg-sky-50 border border-sky-100 px-2.5 py-1 font-mono text-[#0284c7] font-bold">Cost: 6 Credits / sync</span>
               </div>
             </div>
 
-            {/* Workflow 4-step interactive pipeline */}
-            <div className="grid gap-6 md:grid-cols-4">
+            {/* Workflow 4-step pipeline */}
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
               {/* Step 1 */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition hover:bg-slate-50">
                 <div className="flex items-center justify-between">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-sky-100 text-[#0284c7]">
                     <FolderSync className="size-4" />
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500">01</span>
+                  <span className="text-[11px] font-mono font-bold text-slate-400">01</span>
                 </div>
-                <h4 className="mt-3 text-sm font-bold text-white">Drive Folder Watcher</h4>
-                <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                  Monitors root job folders for new PDF/DOCX resumes automatically.
+                <h4 className="mt-3 text-sm font-bold text-slate-900">Drive Watcher</h4>
+                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                  Monitors root job subfolders for newly uploaded resumes.
                 </p>
-                <div className="mt-3 rounded-lg bg-black/40 p-2 text-[11px] font-mono text-slate-300 border border-white/5">
+                <div className="mt-3 rounded-lg bg-white p-2 text-[11px] font-mono text-slate-700 border border-slate-200">
                   📁 /Salesforce-PM/resumes
                 </div>
               </div>
 
               {/* Step 2 */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition hover:bg-slate-50">
                 <div className="flex items-center justify-between">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-purple-500/10 text-purple-400">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
                     <Cpu className="size-4" />
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500">02</span>
+                  <span className="text-[11px] font-mono font-bold text-slate-400">02</span>
                 </div>
-                <h4 className="mt-3 text-sm font-bold text-white">Gemini Multimodal AI</h4>
-                <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                  Parses complex layouts & OCR with multi-tier fallback resilience.
+                <h4 className="mt-3 text-sm font-bold text-slate-900">Gemini AI Parser</h4>
+                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                  Extracts candidate details with automatic model fallbacks.
                 </p>
-                <div className="mt-3 rounded-lg bg-black/40 p-2 text-[11px] font-mono text-purple-300 border border-white/5">
+                <div className="mt-3 rounded-lg bg-white p-2 text-[11px] font-mono text-purple-700 border border-purple-200">
                   ⚡ gemini-flash-latest
                 </div>
               </div>
 
               {/* Step 3 */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition hover:bg-slate-50">
                 <div className="flex items-center justify-between">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700">
                     <ShieldCheck className="size-4" />
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500">03</span>
+                  <span className="text-[11px] font-mono font-bold text-slate-400">03</span>
                 </div>
-                <h4 className="mt-3 text-sm font-bold text-white">Anti-Hallucination</h4>
-                <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                  Validates real candidate names and verifies Google Sheet duplicate rows.
+                <h4 className="mt-3 text-sm font-bold text-slate-900">Anti-Hallucination</h4>
+                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                  Validates candidate names and verifies duplicate sheet rows.
                 </p>
-                <div className="mt-3 rounded-lg bg-black/40 p-2 text-[11px] font-mono text-emerald-300 border border-white/5">
+                <div className="mt-3 rounded-lg bg-white p-2 text-[11px] font-mono text-emerald-700 border border-emerald-200">
                   ✓ Verified: Shakir Imran
                 </div>
               </div>
 
               {/* Step 4 */}
-              <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+              <div className="rounded-2xl border border-slate-200/80 bg-slate-50/50 p-4 transition hover:bg-slate-50">
                 <div className="flex items-center justify-between">
-                  <span className="flex size-9 items-center justify-center rounded-xl bg-pink-500/10 text-pink-400">
+                  <span className="flex size-9 items-center justify-center rounded-xl bg-sky-100 text-[#0284c7]">
                     <Table className="size-4" />
                   </span>
-                  <span className="text-[11px] font-mono text-slate-500">04</span>
+                  <span className="text-[11px] font-mono font-bold text-slate-400">04</span>
                 </div>
-                <h4 className="mt-3 text-sm font-bold text-white">Dynamic Sheet Sync</h4>
-                <p className="mt-1 text-xs text-slate-400 leading-relaxed">
-                  Populates designated columns (Name, Phone, Email, Missing Skills).
+                <h4 className="mt-3 text-sm font-bold text-slate-900">Dynamic Sheet Sync</h4>
+                <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+                  Fills designated columns (Name, Phone, Email, Missing Skills).
                 </p>
-                <div className="mt-3 rounded-lg bg-black/40 p-2 text-[11px] font-mono text-pink-300 border border-white/5">
+                <div className="mt-3 rounded-lg bg-white p-2 text-[11px] font-mono text-sky-700 border border-sky-200">
                   📊 Row Synced + 6 Credits
                 </div>
               </div>
             </div>
 
-            {/* Real Candidate Preview Simulation */}
-            <div className="mt-6 rounded-2xl border border-white/10 bg-black/50 p-4 sm:p-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-3">
+            {/* Candidate Card Preview */}
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
                 <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 font-bold text-white text-sm">
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-[#0284c7] font-bold text-white text-sm shadow-xs">
                     SI
                   </div>
                   <div>
-                    <h5 className="font-bold text-white">Shakir Imran</h5>
-                    <p className="text-xs text-slate-400">Senior Salesforce Project Manager · 12 yrs exp</p>
+                    <h5 className="font-bold text-slate-900">Shakir Imran</h5>
+                    <p className="text-xs text-slate-500">Senior Salesforce Project Manager · 12 yrs experience</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-3 py-1 text-xs font-bold text-emerald-400">
+                  <span className="rounded-full bg-emerald-100 border border-emerald-300/60 px-3 py-1 text-xs font-bold text-emerald-800">
                     94% JD Match
                   </span>
-                  <span className="rounded-full bg-indigo-500/15 border border-indigo-500/30 px-3 py-1 text-xs font-bold text-indigo-300">
+                  <span className="rounded-full bg-sky-100 border border-sky-300/60 px-3 py-1 text-xs font-bold text-[#0284c7]">
                     Auto-Synced
                   </span>
                 </div>
               </div>
 
               <div className="mt-4 grid gap-3 sm:grid-cols-4 text-xs font-mono">
-                <div className="rounded-lg bg-white/[0.02] p-2.5 border border-white/5">
-                  <span className="text-slate-500 block text-[10px]">PHONE</span>
-                  <span className="text-slate-200">+1 (416) 555-0198</span>
+                <div className="rounded-xl bg-white p-3 border border-slate-200 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px] font-sans font-semibold">PHONE</span>
+                  <span className="text-slate-800 font-bold">+1 (416) 555-0198</span>
                 </div>
-                <div className="rounded-lg bg-white/[0.02] p-2.5 border border-white/5">
-                  <span className="text-slate-500 block text-[10px]">EMAIL</span>
-                  <span className="text-slate-200">shakir.imran@example.com</span>
+                <div className="rounded-xl bg-white p-3 border border-slate-200 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px] font-sans font-semibold">EMAIL</span>
+                  <span className="text-slate-800 font-bold">shakir.imran@example.com</span>
                 </div>
-                <div className="rounded-lg bg-white/[0.02] p-2.5 border border-white/5">
-                  <span className="text-slate-500 block text-[10px]">ADDRESS / LOCATION</span>
-                  <span className="text-slate-200">Toronto, ON, Canada</span>
+                <div className="rounded-xl bg-white p-3 border border-slate-200 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px] font-sans font-semibold">ADDRESS / LOCATION</span>
+                  <span className="text-slate-800 font-bold">Toronto, ON, Canada</span>
                 </div>
-                <div className="rounded-lg bg-white/[0.02] p-2.5 border border-white/5">
-                  <span className="text-slate-500 block text-[10px]">MISSING SKILLS</span>
-                  <span className="text-amber-400 font-sans">Salesforce CPQ (Minor)</span>
+                <div className="rounded-xl bg-white p-3 border border-slate-200 shadow-2xs">
+                  <span className="text-slate-400 block text-[10px] font-sans font-semibold">MISSING SKILLS</span>
+                  <span className="text-amber-600 font-sans font-semibold">Salesforce CPQ (Minor)</span>
                 </div>
               </div>
             </div>
@@ -364,40 +390,40 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
       </section>
 
       {/* Features Grid */}
-      <section id="features" className="relative px-6 py-20 border-t border-white/10 bg-white/[0.01]">
-        <div className="mx-auto max-w-7xl">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="rounded-full bg-indigo-500/10 border border-indigo-500/30 px-3.5 py-1 text-xs font-bold text-indigo-400 uppercase tracking-wider">
+      <section id="features" className="relative px-6 py-16 border-t border-slate-200/80 bg-white">
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-2xl text-center">
+            <span className="rounded-full bg-sky-50 border border-sky-200 px-3.5 py-1 text-xs font-bold text-[#0284c7] uppercase tracking-wider">
               Engine Capabilities
             </span>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl text-slate-900">
               Engineered for Speed, Precision, and Zero Maintenance
             </h2>
-            <p className="mt-3 text-slate-400 text-sm sm:text-base">
-              Say goodbye to messy resume parsing APIs. Our RaaS stack gives recruiting agencies and enterprises end-to-end automation.
+            <p className="mt-2 text-slate-600 text-sm sm:text-base">
+              Say goodbye to manual resume screening. Our RaaS stack gives recruiting agencies and enterprises end-to-end automation.
             </p>
           </div>
 
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map((feat) => {
               const Icon = feat.icon
               return (
                 <div
                   key={feat.title}
-                  className="group relative rounded-3xl border border-white/10 bg-white/[0.02] p-7 transition duration-300 hover:border-indigo-500/40 hover:bg-white/[0.04] hover:-translate-y-1"
+                  className="group relative rounded-2xl border border-slate-200 bg-white p-6 transition duration-200 hover:border-[#0284c7]/50 hover:shadow-md hover:-translate-y-0.5"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="flex size-12 items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-400 group-hover:bg-indigo-500/20 transition">
-                      <Icon className="size-6" />
+                    <span className="flex size-11 items-center justify-center rounded-xl bg-sky-50 text-[#0284c7] group-hover:bg-[#0284c7] group-hover:text-white transition">
+                      <Icon className="size-5" />
                     </span>
-                    <span className="rounded-full bg-white/5 px-2.5 py-0.5 text-[11px] font-semibold text-slate-400 border border-white/10">
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[11px] font-semibold text-slate-600">
                       {feat.badge}
                     </span>
                   </div>
-                  <h3 className="mt-5 text-lg font-bold text-white group-hover:text-indigo-300 transition">
+                  <h3 className="mt-4 text-base font-bold text-slate-900 group-hover:text-[#0284c7] transition">
                     {feat.title}
                   </h3>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+                  <p className="mt-2 text-xs text-slate-600 leading-relaxed">
                     {feat.description}
                   </p>
                 </div>
@@ -407,97 +433,51 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
         </div>
       </section>
 
-      {/* 3-Step Workflow */}
-      <section id="workflow" className="relative px-6 py-20 border-t border-white/10">
+      {/* Pricing / Credits Economics */}
+      <section id="pricing" className="relative px-6 py-16 border-t border-slate-200/80 bg-[#f8fafc]">
         <div className="mx-auto max-w-6xl">
-          <div className="text-center">
-            <span className="rounded-full bg-purple-500/10 border border-purple-500/30 px-3.5 py-1 text-xs font-bold text-purple-400 uppercase tracking-wider">
-              Simple 3-Step Setup
-            </span>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
-              Launch an Autonomous Ingestion Pipeline in Minutes
-            </h2>
-          </div>
-
-          <div className="mt-14 grid gap-8 md:grid-cols-3">
-            <div className="relative rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-600 font-bold text-white text-lg">
-                1
-              </div>
-              <h3 className="mt-6 text-lg font-bold text-white">Connect Drive & JD</h3>
-              <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                Provide your Google Drive root folder. The system auto-discovers job folders and matches JD DOCX files.
-              </p>
-            </div>
-
-            <div className="relative rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-purple-500 to-pink-600 font-bold text-white text-lg">
-                2
-              </div>
-              <h3 className="mt-6 text-lg font-bold text-white">Select Columns & Interval</h3>
-              <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                Choose which sheet columns to populate and set your active sync interval (e.g. every 5 minutes or run once).
-              </p>
-            </div>
-
-            <div className="relative rounded-3xl border border-white/10 bg-white/[0.02] p-8">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-pink-500 to-emerald-500 font-bold text-white text-lg">
-                3
-              </div>
-              <h3 className="mt-6 text-lg font-bold text-white">Live Candidate Sync</h3>
-              <p className="mt-2 text-sm text-slate-400 leading-relaxed">
-                Candidates are extracted with multi-tier Gemini AI, deduplicated against existing rows, and appended seamlessly.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Credits & Pricing Section */}
-      <section id="pricing" className="relative px-6 py-20 border-t border-white/10 bg-white/[0.01]">
-        <div className="mx-auto max-w-6xl">
-          <div className="text-center max-w-3xl mx-auto">
-            <span className="rounded-full bg-amber-500/10 border border-amber-500/30 px-3.5 py-1 text-xs font-bold text-amber-400 uppercase tracking-wider">
+          <div className="text-center max-w-2xl mx-auto">
+            <span className="rounded-full bg-sky-50 border border-sky-200 px-3.5 py-1 text-xs font-bold text-[#0284c7] uppercase tracking-wider">
               Transparent Credit Economics
             </span>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl text-slate-900">
               6 Credits per Resume. No Hidden Fees.
             </h2>
-            <p className="mt-3 text-slate-400 text-sm sm:text-base">
+            <p className="mt-2 text-slate-600 text-sm sm:text-base">
               Every resume parsed, matched to JD requirements, and synchronized into your tracking sheet costs exactly 6 credits.
             </p>
           </div>
 
-          <div className="mt-14 grid gap-8 lg:grid-cols-3">
+          <div className="mt-12 grid gap-6 lg:grid-cols-3">
             {/* Starter Plan */}
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 flex flex-col justify-between">
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 flex flex-col justify-between shadow-xs">
               <div>
-                <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-slate-300">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                   Starter Recruiter
                 </span>
                 <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">$299</span>
-                  <span className="text-slate-400 text-sm">/month</span>
+                  <span className="text-4xl font-extrabold text-slate-900">$299</span>
+                  <span className="text-slate-500 text-sm font-medium">/month</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  Ideal for boutique staffing agencies sourcing 5 active positions.
+                <p className="mt-2 text-xs text-slate-500">
+                  Ideal for boutique staffing agencies sourcing up to 5 active positions.
                 </p>
 
-                <div className="my-6 border-t border-white/10 pt-6 space-y-3 text-sm text-slate-300">
+                <div className="my-6 border-t border-slate-100 pt-6 space-y-3 text-sm text-slate-700">
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span><strong>1,800 Credits</strong> (300 Resumes)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>Up to 5 Active Job Workspaces</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>15-Minute Sync Intervals</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>Google Sheets 2-Way Sync</span>
                   </div>
                 </div>
@@ -505,103 +485,99 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
 
               <button
                 onClick={() => openAuth('signup')}
-                className="w-full rounded-xl border border-white/15 bg-white/5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
               >
                 Choose Starter
               </button>
             </div>
 
-            {/* Growth Plan (Highlighted) */}
-            <div className="relative rounded-3xl border-2 border-indigo-500 bg-gradient-to-b from-indigo-950/40 via-purple-950/20 to-black/40 p-8 flex flex-col justify-between shadow-2xl shadow-indigo-500/20">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-gradient-to-r from-indigo-500 to-purple-600 px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white shadow-md">
+            {/* Growth Plan (Featured) */}
+            <div className="relative rounded-3xl border-2 border-[#0284c7] bg-white p-7 flex flex-col justify-between shadow-lg shadow-sky-100">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 rounded-full bg-[#0284c7] px-4 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white shadow-sm">
                 Most Popular
               </div>
 
               <div>
-                <span className="rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-bold text-indigo-300">
+                <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-[#0284c7]">
                   Agency Growth
                 </span>
                 <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">$799</span>
-                  <span className="text-slate-400 text-sm">/month</span>
+                  <span className="text-4xl font-extrabold text-slate-900">$799</span>
+                  <span className="text-slate-500 text-sm font-medium">/month</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-400">
+                <p className="mt-2 text-xs text-slate-500">
                   For growing recruiting teams handling up to 20 continuous roles.
                 </p>
 
-                <div className="my-6 border-t border-white/10 pt-6 space-y-3 text-sm text-slate-300">
+                <div className="my-6 border-t border-slate-100 pt-6 space-y-3 text-sm text-slate-700">
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span><strong>6,000 Credits</strong> (1,000 Resumes)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>Up to 20 Active Job Folders</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>5-Minute High-Frequency Sync</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>Dynamic Custom Column Extractor</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
-                    <span>Super Admin Credit Delegation</span>
+                    <Check className="size-4 text-[#0284c7]" />
+                    <span>Super Admin Credit Allocation</span>
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={() => openAuth('signup')}
-                className="w-full rounded-xl bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-600 py-3 text-sm font-bold text-white shadow-lg shadow-indigo-500/30 transition hover:shadow-indigo-500/50 hover:scale-[1.01]"
+                className="w-full rounded-xl bg-[#0284c7] py-3 text-sm font-bold text-white shadow-md shadow-sky-500/25 transition hover:bg-[#0369a1] hover:scale-[1.01]"
               >
                 Start Free Trial
               </button>
             </div>
 
             {/* Enterprise Plan */}
-            <div className="rounded-3xl border border-white/10 bg-white/[0.02] p-8 flex flex-col justify-between">
+            <div className="rounded-3xl border border-slate-200 bg-white p-7 flex flex-col justify-between shadow-xs">
               <div>
-                <span className="rounded-full bg-white/5 px-3 py-1 text-xs font-bold text-slate-300">
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                   Enterprise RaaS
                 </span>
                 <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">$1,499</span>
-                  <span className="text-slate-400 text-sm">/month</span>
+                  <span className="text-4xl font-extrabold text-slate-900">$1,499</span>
+                  <span className="text-slate-500 text-sm font-medium">/month</span>
                 </div>
-                <p className="mt-2 text-xs text-slate-400">
-                  Full white-labeled multi-tenant solution with dedicated model rate limits.
+                <p className="mt-2 text-xs text-slate-500">
+                  Full white-labeled multi-tenant solution with custom quotas.
                 </p>
 
-                <div className="my-6 border-t border-white/10 pt-6 space-y-3 text-sm text-slate-300">
+                <div className="my-6 border-t border-slate-100 pt-6 space-y-3 text-sm text-slate-700">
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span><strong>15,000+ Credits</strong> (2,500+ Resumes)</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>Unlimited Active Roles</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
+                    <Check className="size-4 text-[#0284c7]" />
                     <span>Real-time Ingestion Watcher</span>
                   </div>
                   <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
-                    <span>White-Label Branding & Custom Domains</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <Check className="size-4 text-emerald-400" />
-                    <span>Dedicated Priority Gemini Tier</span>
+                    <Check className="size-4 text-[#0284c7]" />
+                    <span>White-Label Branding & Domains</span>
                   </div>
                 </div>
               </div>
 
               <button
                 onClick={() => openAuth('signup')}
-                className="w-full rounded-xl border border-white/15 bg-white/5 py-3 text-sm font-semibold text-white transition hover:bg-white/10"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 text-sm font-bold text-slate-800 transition hover:bg-slate-100"
               >
                 Contact Enterprise
               </button>
@@ -611,38 +587,38 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="relative px-6 py-20 border-t border-white/10">
-        <div className="mx-auto max-w-4xl">
+      <section id="faq" className="relative px-6 py-16 border-t border-slate-200/80 bg-white">
+        <div className="mx-auto max-w-3xl">
           <div className="text-center">
-            <span className="rounded-full bg-indigo-500/10 border border-indigo-500/30 px-3.5 py-1 text-xs font-bold text-indigo-400 uppercase tracking-wider">
+            <span className="rounded-full bg-sky-50 border border-sky-200 px-3.5 py-1 text-xs font-bold text-[#0284c7] uppercase tracking-wider">
               Got Questions?
             </span>
-            <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl text-white">
+            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl text-slate-900">
               Frequently Asked Questions
             </h2>
           </div>
 
-          <div className="mt-12 space-y-4">
+          <div className="mt-10 space-y-3">
             {faqs.map((faq, index) => {
               const isOpen = activeFaq === index
               return (
                 <div
                   key={index}
-                  className="rounded-2xl border border-white/10 bg-white/[0.02] transition overflow-hidden"
+                  className="rounded-2xl border border-slate-200 bg-white transition overflow-hidden shadow-2xs"
                 >
                   <button
                     onClick={() => setActiveFaq(isOpen ? null : index)}
-                    className="flex w-full items-center justify-between p-6 text-left text-base font-semibold text-white transition hover:bg-white/[0.02]"
+                    className="flex w-full items-center justify-between p-5 text-left text-sm font-bold text-slate-900 transition hover:bg-slate-50"
                   >
                     <span>{faq.q}</span>
                     <ChevronRight
-                      className={`size-5 text-slate-400 transition-transform ${
-                        isOpen ? 'rotate-90 text-indigo-400' : ''
+                      className={`size-4 text-slate-400 transition-transform ${
+                        isOpen ? 'rotate-90 text-[#0284c7]' : ''
                       }`}
                     />
                   </button>
                   {isOpen && (
-                    <div className="px-6 pb-6 text-sm text-slate-300 leading-relaxed border-t border-white/5 pt-4">
+                    <div className="px-5 pb-5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3">
                       {faq.a}
                     </div>
                   )}
@@ -653,46 +629,45 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
         </div>
       </section>
 
-      {/* Final Conversion Banner */}
-      <section className="relative px-6 py-20 border-t border-white/10 overflow-hidden">
-        <div className="mx-auto max-w-5xl rounded-3xl border border-indigo-500/30 bg-gradient-to-r from-indigo-950/60 via-purple-950/40 to-pink-950/40 p-10 sm:p-16 text-center relative shadow-2xl">
-          <div className="relative z-10">
-            <h2 className="text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
-              Ready to Automate Your Hiring Workflow?
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-base text-slate-300 leading-relaxed">
-              Connect your Google Drive and candidate Google Sheet in 60 seconds. Experience zero-maintenance recruiting automation today.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <button
-                onClick={() => openAuth('signup')}
-                className="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-base font-bold text-slate-900 shadow-xl transition hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>Get Started Now</span>
-                <ArrowRight className="size-5" />
-              </button>
-            </div>
+      {/* Final Conversion CTA */}
+      <section className="relative px-6 py-16 border-t border-slate-200 bg-gradient-to-r from-sky-600 to-blue-700 text-white text-center">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-3xl font-extrabold sm:text-5xl tracking-tight">
+            Ready to Automate Your Hiring Workflow?
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base text-sky-100 leading-relaxed">
+            Connect your Google Drive and candidate Google Sheet in 60 seconds. Experience zero-maintenance recruiting automation today.
+          </p>
+          <div className="mt-8 flex justify-center">
+            <button
+              onClick={() => openAuth('signup')}
+              className="inline-flex items-center gap-2 rounded-2xl bg-white px-8 py-4 text-sm font-extrabold text-[#0284c7] shadow-lg transition hover:bg-slate-50 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <span>Get Started Now</span>
+              <ArrowRight className="size-4" />
+            </button>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-white/10 bg-[#040609] py-10 px-6 text-xs text-slate-500">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-300">TalentFlow AI</span>
+      <footer className="border-t border-slate-200 bg-white py-8 px-6 text-xs text-slate-500">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Centennial Logo" className="h-6 w-auto object-contain" />
+            <span className="font-bold text-slate-800">Centennial Recruitment Automation</span>
             <span>·</span>
-            <span>Centennial Infotech © 2026</span>
+            <span>© 2026 Centennial Infotech</span>
           </div>
 
           <div className="flex items-center gap-6">
-            <a href="#features" className="hover:text-slate-300">Features</a>
-            <a href="#pipeline" className="hover:text-slate-300">Pipeline Demo</a>
-            <a href="#pricing" className="hover:text-slate-300">Pricing</a>
+            <a href="#features" className="hover:text-slate-900">Features</a>
+            <a href="#pipeline" className="hover:text-slate-900">Pipeline Demo</a>
+            <a href="#pricing" className="hover:text-slate-900">Pricing</a>
             {onOpenAdminLogin && (
               <button
                 onClick={onOpenAdminLogin}
-                className="text-indigo-400 hover:text-indigo-300 font-semibold"
+                className="text-[#0284c7] hover:underline font-bold"
               >
                 Super Admin Login
               </button>
@@ -703,12 +678,11 @@ export function LandingPage({ onAuthSuccess, onOpenAdminLogin }: LandingPageProp
 
       {/* Authentication Modal */}
       {authModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-md">
-          <div className="relative w-full max-w-md animate-in fade-in zoom-in duration-200">
-            {/* Close button */}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-md animate-in fade-in zoom-in duration-150">
             <button
               onClick={() => setAuthModalOpen(false)}
-              className="absolute -top-3 -right-3 z-10 flex size-9 items-center justify-center rounded-full border border-white/20 bg-slate-900 text-slate-300 hover:bg-slate-800 hover:text-white"
+              className="absolute -top-3 -right-3 z-10 flex size-8 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 shadow-md hover:bg-slate-100 hover:text-slate-900"
             >
               <X className="size-4" />
             </button>

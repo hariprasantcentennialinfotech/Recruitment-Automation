@@ -339,7 +339,7 @@ export default function Page() {
             />
             <div>
               <p className="text-[16px] sm:text-[17px] font-bold tracking-tight text-foreground leading-tight">
-                Recruiting Automation
+                Recruitment Automation
               </p>
               <p className="text-[11px] font-medium tracking-[0.14em] uppercase text-muted-foreground">
                 Centennial Infotech
