@@ -128,11 +128,11 @@ ${resumeText.slice(0, 28_000)}
 
     // Try multiple Gemini model names for resilience
     const models = [
-      'gemini-flash-latest',
-      'gemini-3.7-flash',
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
-      'gemini-3.6-flash',
+      'gemini-2.0-flash',
+      'gemini-2.0-flash-lite',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro-latest',
     ]
 
     for (const model of models) {
@@ -143,7 +143,7 @@ ${resumeText.slice(0, 28_000)}
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(12000),
+            signal: AbortSignal.timeout(30000),
             body: JSON.stringify({
               contents: [{ parts: [{ text: prompt }] }],
               generationConfig: {
@@ -245,11 +245,11 @@ STRICT RULES — MUST FOLLOW:
 Return ONLY a valid JSON object matching these keys.`
 
   const models = [
-    'gemini-flash-latest',
-    'gemini-3.7-flash',
-    'gemini-3.8-flash',
-    'gemini-3.5-flash',
-    'gemini-3.6-flash',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-lite',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro-latest',
   ]
 
   for (const model of models) {
@@ -260,7 +260,7 @@ Return ONLY a valid JSON object matching these keys.`
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(12000),
+          signal: AbortSignal.timeout(30000),
           body: JSON.stringify({
             contents: [
               {
@@ -526,12 +526,13 @@ ${jdText.slice(0, 20_000)}
 """`
 
       const startTime = Date.now()
-      const model = 'gemini-3.6-flash'
+      const model = 'gemini-2.0-flash'
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(30000),
           body: JSON.stringify({
             contents: [{ parts: [{ text: prompt }] }],
             generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
@@ -562,7 +563,7 @@ ${jdText.slice(0, 20_000)}
       }
     } catch (err: any) {
       recordModelUsage({
-        model: 'gemini-3.6-flash',
+        model: 'gemini-2.0-flash',
         operation: 'jd_analysis',
         statusCode: 0,
         durationMs: 0,
@@ -788,11 +789,11 @@ ${resumeText.slice(0, 30_000)}
 """`
 
       const models = [
-        'gemini-flash-latest',
-        'gemini-3.7-flash',
-        'gemini-3.8-flash',
-        'gemini-3.5-flash',
-        'gemini-3.6-flash',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro-latest',
       ]
 
       for (const model of models) {
@@ -803,7 +804,7 @@ ${resumeText.slice(0, 30_000)}
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              signal: AbortSignal.timeout(12000),
+              signal: AbortSignal.timeout(30000),
               body: JSON.stringify({
                 contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
